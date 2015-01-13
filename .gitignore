@@ -1,0 +1,9 @@
+/_build
+/deps
+/ebin
+/src/yang/hrl
+/src/*.hrl
+erl_crash.dump
+*.ez
+.compile.elixir
+mix.lock
