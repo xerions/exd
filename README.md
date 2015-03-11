@@ -15,27 +15,29 @@ If some of this patterns ( like automigration ) will be usefull generally in ect
 Easy bootstrap
 --------------
 
-    # Configuration for Repo, only for iex try taste, please use supervisor in your application
-    :application.set_env(:example, Repo, [adapter: Ecto.Adapters.MySQL, database: "example", username: "root"])
-    defmodule Repo, do: (use Ecto.Repo, otp_app: :example)
-    Repo.start_link
+```elixir
+# Configuration for Repo, only for iex try taste, please use supervisor in your application
+:application.set_env(:example, Repo, [adapter: Ecto.Adapters.MySQL, database: "example", username: "root"])
+defmodule Repo, do: (use Ecto.Repo, otp_app: :example)
+Repo.start_link
 
-    import Exd.Model
+import Exd.Model
 
-    model Weather do # is for later at now
-      schema "weather" do
-        field :city
-        field :temp_lo, :integer
-        field :temp_hi, :integer
-        field :prcp,    :float, default: 0.0
-      end
-    end # compiles to Ecto model
+model Weather do # is for later at now
+  schema "weather" do
+    field :city
+    field :temp_lo, :integer
+    field :temp_hi, :integer
+    field :prcp,    :float, default: 0.0
+  end
+end # compiles to Ecto model
 
-    # After you start a Repo, no mix tasks, no themself written migrations
-    Exd.Model.migrate(Repo, Weather)
+# After you start a Repo, no mix tasks, no themself written migrations
+Exd.Model.migrate(Repo, Weather)
 
-    %Weather{city: "Berlin", temp_lo: 20, temp_hi: 25} |> Repo.insert
-    Repo.all(from w in Weather, where: w.city == "Berlin")
+%Weather{city: "Berlin", temp_lo: 20, temp_hi: 25} |> Repo.insert
+Repo.all(from w in Weather, where: w.city == "Berlin")
+```
 
 At the moment, only initial migration supported, next migrations are WiP at the moment.
 
@@ -43,6 +45,23 @@ Configurable model on start
 ---------------------------
 
 There is model_add construct and a function, which allows on start to define the model and with 'plugins', how should the data see. [WiP]
+
+```elixir
+model Weather do # is for later at now
+  schema "weather" do
+    field :city
+    field :temp_lo, :integer
+    field :temp_hi, :integer
+    field :prcp,    :float, default: 0.0
+  end
+end # compiles to Ecto model
+
+model_add WindWeather, to: Weather do
+  schema do
+    field :wind, :float, default: 0.0
+  end
+end
+```
 
 Data handling patterns
 ----------------------

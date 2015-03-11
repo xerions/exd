@@ -10,38 +10,37 @@ defmodule Exd.Model do
     Ecto.Migrator.up(repo, :crypto.rand_uniform(0, 1099511627775), Exd.Migration.migration_module_name(module))
   end
 
-  def compile_migrate_model(repo, module, module_adds) do
- #  compile_model(module, module_adds)
+  def compile_migrate(repo, module, module_adds) do
+    compile(module, module_adds)
     migrate(repo, module)
   end
 
- # def compile_model(module, module_adds) do
- #   {^module, name, _actual_body, body, _adds} = module.__source__()
- #   new_body = Enum.reduce(module_adds, body, &(&1.__source__(module) |> merge_model(&2)))
- #   gen_model(module, new_body, body, module_adds) |> Code.eval_quoted
- # end
+  def compile(module, module_adds) do
+    {^module, _actual_body, body, _adds} = module.__source__()
+    new_body = Enum.reduce(module_adds, body, &(&1.__source__(module) |> merge_schema(&2)))
+    gen_model(module, new_body, body, module_adds) |> Code.eval_quoted
+  end
 
-  defmacro model_add(module_add, [do: block]) do
-    block_list = unblock(block)
-    quoted = for {:model, _, [name, [do: model_block]]} <- block_list do
-      quote do
-        def __source__(unquote(name)), do: unquote(model_block |> unblock |> Macro.escape)
-      end
-    end
-    {models, quoted_models} =
-      for {:model, _, [name, model_block]} <- block_list do
-        module = Macro.expand(name, __ENV__)
-        {^module, name, actual_body, body, adds} = module.__source__()
-        IO.inspect({name, adds})
-        new_body = merge_model(model_block, actual_body)
-        {module, gen_model(module, new_body, body, [module_add | adds])}
-      end |> :lists.unzip
+  defmacro model_add(module_add, [to: module], [do: body]) do
+    IO.inspect(body)
+    schema = unblock(body) |> List.keyfind(:schema, 0)
+    new_schema_block = case schema do
+      {:schema, _, [name, [do: block]]} ->
+        block
+      {:schema, _, [[do: block]]} ->
+        block
+    end |> unblock
+    module = Macro.expand(module, __ENV__)
+    {^module, actual_body, body, adds} = module.__source__()
+    actual_schema = {:schema, meta, [name, [do: actual_block]]} = List.keyfind(actual_body, :schema, 0)
+    new_schema = {:schema, meta, [name, [do: merge_schema(new_schema_block, unblock(actual_block))]]}
+    new_body = List.keyreplace(actual_body, :schema, 0, new_schema)
+    quoted_model = gen_model(module, new_body, body, [module_add | adds])
     quote do
       defmodule unquote(module_add) do
-        def __source__, do: {unquote(module_add), unquote(models)}
-        unquote_splicing(quoted)
+        def __source__(), do: unquote(body |> unblock |> Macro.escape)
       end
-      unquote_splicing(quoted_models)
+      unquote(quoted_model)
     end
   end
 
@@ -91,25 +90,11 @@ defmodule Exd.Model do
     end
   end
 
-  defp merge_model([do: adds], model), do: merge_model(unblock(adds), model)
-  defp merge_model(adds, [do: block]), do: merge_model(adds, unblock(block))
-  defp merge_model([], model), do: model
-  defp merge_model([{:object, _, [key, [do: block]]} = object | next], model) do
-    objects = [] #Enum.filter(model, &object?(key, &1))
-    {exists, add} = case objects do
-      [] -> {false, object}
-      [{:object, meta, [key]}] -> {true, {:object, meta, [key, [do: block]]}}
-      [{:object, meta, [key, rest]}] -> {true, {:object, meta, [key, [do: (unblock(block) |> merge_model(rest))]]}}
-    end
-    new_model = case exists do
-      false -> model ++ [add]
-      #true  -> Enum.map(model, &(if object?(key, &1) do add else &1 end))
-    end
-    merge_model(next, new_model)
-  end
-  defp merge_model([{k, _, _} = kv | next], model)
-   when k in [:field, :belongs_to, :has_many, :has_one] do
-    merge_model(next, model ++ [kv])
+  defp merge_schema([do: adds], model), do: merge_schema(unblock(adds), model)
+  defp merge_schema(adds, [do: block]), do: merge_schema(adds, unblock(block))
+  defp merge_schema([], model), do: model
+  defp merge_schema([kv | next], model) do
+    merge_schema(next, model ++ [kv])
   end
 
   defp unblock({:__block__, _, body}), do: body
