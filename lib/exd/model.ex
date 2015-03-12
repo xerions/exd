@@ -1,3 +1,6 @@
+import Ecto.Query
+import Exd.Model.Util
+
 defmodule Exd.Model do
   defmacro __using__(_) do
     quote do
@@ -6,19 +9,37 @@ defmodule Exd.Model do
   end
 
   def migrate(repo, module) do
-    Exd.Migration.generate(module) |> Code.eval_quoted
-    Ecto.Migrator.up(repo, :crypto.rand_uniform(0, 1099511627775), Exd.Migration.migration_module_name(module))
+    Ecto.Migrator.up(repo, :crypto.rand_uniform(0, 1099511627775), extend_module_name(module, ".Migration"))
   end
 
   def compile_migrate(repo, module, module_adds) do
-    compile(module, module_adds)
-    migrate(repo, module)
-  end
-
-  def compile(module, module_adds) do
-    {^module, _actual_body, body, _adds} = module.__source__()
-    new_body = Enum.reduce(module_adds, body, &(&1.__source__(module) |> merge_schema(&2)))
-    gen_model(module, new_body, body, module_adds) |> Code.eval_quoted
+    api_mod = ((module |> Atom.to_string) <> ".Api") |> String.to_atom
+    table_name = api_mod.__tablename__(module) |> Atom.to_string
+    # get or create system table
+    system_tbl_resp = try do
+                        query = from table in Exd.Schema.SystemTable, where: table.tablename == ^table_name, select: table
+                        case repo.all(query) do
+                          [] ->
+                            []
+                          [data] ->
+                            data.metainfo
+                        end
+                      catch
+                        _x, _y ->
+                          # we have no system table - 'exd_migration', let's create it
+                          Ecto.Migrator.up(repo, :crypto.rand_uniform(0, 1099511627775), Exd.Migration.SystemTable)
+                          []
+                      end
+    #
+    # Execute migration
+    #
+    case Exd.Model.Migration.generate(module, system_tbl_resp, repo) do
+      [] ->
+        :nothing_migrate
+      mod ->
+        mod |> Code.eval_quoted
+        migrate(repo, module)
+    end
   end
 
   defmacro model_add(module_add, [to: module], [do: body]) do
@@ -49,15 +70,10 @@ defmodule Exd.Model do
     gen_model(module, body, body)
   end
 
-  def find_field_attribute(fields, attribute) do
-    for {_, _, [name, type, opts]} <- fields, List.keymember?(opts, attribute, 0) == true do
-      {name, type, opts}
-    end
-  end
-
   def gen_model(module, body, orig_body, adds \\ []) do
     schema = {:schema, meta, [name, [do: block]]} = List.keyfind(body, :schema, 0)
     all_fields = unblock(block)
+
     {primary_key_field, primary_key_type, primary_key_opts} = case find_field_attribute(all_fields, :primary_key) do
       [] ->
         {:id, :integer, []}
@@ -71,6 +87,8 @@ defmodule Exd.Model do
                                      true
                                  end)
     field_attributes = for {:field, _, [name, _, attributes]} <- all_fields, do: {name, attributes}
+
+    model_introspection = model_to_string(all_fields)
     # Generate new schema
     attribute_options = for {name, attributes} <- field_attributes do
       quote do
@@ -83,7 +101,8 @@ defmodule Exd.Model do
         use Ecto.Model
         @primary_key {unquote(primary_key_field), unquote(primary_key_type), unquote(primary_key_opts)}
         unquote(schema)
-        def __source__, do: {unquote(module), unquote(Macro.escape(body)), unquote(Macro.escape(orig_body)), unquote(adds)}
+        def __introspection__, do: {unquote(name), unquote(model_introspection)}
+        def __source__, do: {unquote(module), unquote(name), unquote(Macro.escape(body)), unquote(Macro.escape(orig_body)), unquote(adds)}
         unquote(attribute_options)
         def __attribute_option__(_), do: []
       end

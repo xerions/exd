@@ -27,7 +27,8 @@ defmodule Exd.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
-    [{:mariaex, ">= 0.0.0"},
+    [{:postgrex, ">= 0.0.0"},
+		 {:mariaex, ">= 0.0.0"},
      {:ecto, "~> 0.9"}]
   end
 end
