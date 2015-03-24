@@ -1,10 +1,9 @@
-defmodule Exd.Model.Util do
+defmodule Exd.Util do
   @shortdoc "Exd.Model utils"
 
-  import Atom
   import Enum
   import String
-  import Kernel, except: [to_string: 1, length: 1]
+  import Kernel, except: [length: 1]
 
   def find_field_attribute(fields, attribute) do
     for {_, _, [name, type, opts]} <- fields, List.keymember?(opts, attribute, 0) == true do
@@ -12,15 +11,19 @@ defmodule Exd.Model.Util do
     end
   end
 
+  def get_associations(module) do
+    module.__schema__(:associations) |> Enum.flat_map(fn(association) ->
+      case module.__schema__(:association, association) do
+        %Ecto.Association.BelongsTo{owner_key: field, assoc: assoc_module} ->
+          [{field, table_name(assoc_module), assoc_module}]
+        _ ->
+          []
+      end
+    end)
+  end
+
   def model_to_string(fields) do
-    fields_length = for f <- fields do 
-			case f do
-				{_, _, [field_name, _ | _]} ->
-					{length(field_name |> to_string), field_name}
-				{_, _, [field_name]} ->
-					{length(field_name |> to_string), field_name}
-			end
-		end
+    fields_length = for {field_name, _, _} <- fields, do:	{length(field_name |> to_string), field_name}
 
     {max_field_len, _} = max fields_length
     {min_field_len, _} = min fields_length
@@ -31,31 +34,11 @@ defmodule Exd.Model.Util do
     [" " <> duplicate("-", 76)] ++
     [title  <> duplicate(" ", 76 - title_len) <> "|"] ++
     [" " <> duplicate("-", 76)] ++
-    map(fields, 
-        fn(field) -> 
-          case field do
-						{:field, _, [field_name]} ->
-							resultStr = " | " <> (field_name |> to_string) <> spaces(field_name, max_field_len) <> 
-                          " | " <> "string"
-              resultStr <> duplicate(" ", 76 - length(resultStr)) <> "|"
-
-            {:field, _, [field_name, field_type]} ->
-              resultStr = " | " <> (field_name |> to_string) <> spaces(field_name, max_field_len) <> 
-                          " | " <> (field_type |> to_string)
-              resultStr <> duplicate(" ", 76 - length(resultStr)) <> "|"
-
-            {:field, _, [field_name, field_type, _]} ->
-              resultStr = " | " <> (field_name |> to_string) <> spaces(field_name, max_field_len) <> 
-                          " | " <> (field_type |> to_string)
-              resultStr <> duplicate(" ", 76 - length(resultStr)) <> "|"
-
-            {_, _, [field_name, {_, _, belongs_to_mod}]} ->
-              resultStr = " | " <> (field_name |> to_string) <> spaces(field_name, max_field_len) <> 
-                          " | " <> (Module.concat(belongs_to_mod) |> to_string)
-              resultStr <> duplicate(" ", 76 - length(resultStr)) <> "|"
-          end
-        end)
-    ++ [" " <> duplicate("-", 76)]
+    map(fields, fn({field_name, field_type, belongs_to}) ->
+      resultStr = " | " <> (field_name |> to_string) <> spaces(field_name, max_field_len) <>
+                  " | " <> (field_type |> to_string) <> " | " <> (belongs_to |> to_string)
+      resultStr <> duplicate(" ", 76 - length(resultStr)) <> "|"
+    end) ++ [" " <> duplicate("-", 76)]
   end
 
   def spaces(field_name, max_field_len) do

@@ -27,8 +27,10 @@ defmodule Exd.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
-    [{:postgrex, ">= 0.0.0"},
-		 {:mariaex, ">= 0.0.0"},
-     {:ecto, "~> 0.9"}]
+    [{:postgrex, ">= 0.0.0", optional: true},
+     {:mariaex, ">= 0.1.0", optional: true},
+     {:exscript, github: "liveforeverx/exscript"},
+     {:ecto, "~> 0.10.0"},
+     {:ecto_migrate, github: "xerions/ecto_migrate"}]
   end
 end

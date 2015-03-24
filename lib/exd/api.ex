@@ -1,6 +1,6 @@
 defmodule Exd.Model.Api do
   import Ecto.Query
-  import Exd.Model.Util
+  import Exd.Util
 
   @doc """
   Generate new module with model API.
@@ -13,41 +13,46 @@ defmodule Exd.Model.Api do
   """
   defmacro gen_api({_, _, splitten_module_name} = model, repo) do
     api_module_name = extend_module_name(Module.concat(splitten_module_name), ".Api")
-    #
-    # generate new module
-    #
-    quote do
+    quote location: :keep do
       defmodule unquote(api_module_name) do
+        import Exd.Util
+        import Ecto.Query
 
-        def show do
-          unquote(model).__introspection__
-        end
-
-        def delete_all(model) do
-          unquote(repo).delete_all(model, log: false)
-        end
-
-        def delete(query) do
-          case select(query) do
-            [] ->
-              :not_found
-            [res] ->
-              unquote(repo).delete(res, log: false)
+        def introspection do
+          fields = unquote(model).__schema__(:fields)
+          associations = get_associations(unquote(model))
+          fields = for field <- fields do
+            case List.keyfind(associations, field, 0) do
+              {_, table, _} -> {field, :integer, table}
+              nil -> {field, unquote(model).__schema__(:field, field), ""}
+            end
           end
+          actions = unquote(model).__info__(:functions) |> Enum.flat_map(fn({function, _}) ->
+            case to_string(function) do
+              "__action__" <> action ->
+                [action]
+              _ ->
+                []
+            end
+          end)
+          {fields, ["insert", "get", "update", "select" | actions]}
         end
 
-        def update(record) do
-          unquote(repo).update(record, log: false)
+        def empty_query(), do: from(table in unquote(model))
+
+        def delete_all(),  do: unquote(repo).delete_all(unquote(model))
+        def delete(entry), do: unquote(repo).delete(entry)
+        def select(query), do: unquote(repo).all(query)
+
+        def select_on(query_content) do
+          {_primary_key, fields_with_types} = __field_types__()
+          Exd.Builder.Where.build(empty_query, query_content, fields_with_types) |> Exd.Builder.QueryExpr.build(query_content) |> select
         end
 
         def select(query) do
-          unquote(repo).all(query, log: false)
-        end
-
-        def select(model, query) do
-          require Ecto.Query
+          model = unquote(model)
           # get all fields for this model with thier types
-          {_primary_key, fields_with_types} =  __get_fields_with_types__(model)
+          {_primary_key, fields_with_types} =  __field_types__()
           # get associations
           associations = unquote(model).__schema__(:associations)
           # build empty query
@@ -59,19 +64,18 @@ defmodule Exd.Model.Api do
           where_str = case is_where_clause do
                         nil -> ""
                         {:where, where_clause} ->
-                          Enum.reduce(where_clause, "",
-                                      fn(element, acc) ->
-                                        case element do
-                                          {key, op, val} ->
-                                            acc <> (key |> Atom.to_string) <> " " <> (op |> Atom.to_string) <> " " <> Kernel.to_string(val) <> " "
-                                          op ->
-                                            acc <> (op |> Atom.to_string) <> " "
-                                        end
-                                      end)
+                          for element <- where_clause do
+                            case element do
+                              {key, op, val} ->
+                                (key |> Atom.to_string) <> " " <> (op |> Atom.to_string) <> " " <> Kernel.to_string(val)
+                              op ->
+                                (op |> Atom.to_string)
+                            end
+                          end |> Enum.join(" ")
                       end
 
           # update query with where clause
-          where_struct = Mix.Tasks.Compile.Query.Builder.Where.build_where_clause_from_string(where_str, fields_with_types)
+          where_struct = Exd.Builder.Where.build_where_clause_from_string(where_str, fields_with_types)
           # update query with limit clause
           formed_query = Map.put(empty_query, :wheres, [%Ecto.Query.QueryExpr{__struct__: :'Elixir.Ecto.Query.QueryExpr', expr: where_struct}])
 
@@ -92,8 +96,30 @@ defmodule Exd.Model.Api do
           end
         end
 
-        def insert(record) do
-          unquote(repo).insert(record, log: false)
+        def insert(params) when is_list(params), do: insert(:maps.from_list(params))
+        def insert(params) do
+          required = (for name <- unquote(model).__schema__(:fields), do: to_string(name))
+          changeset = Ecto.Changeset.cast(%unquote(model){}, params, required, ~w())
+          if changeset.valid? do
+            _ = unquote(repo).insert(changeset)
+          else
+            {:error, changeset.errors}
+          end
+        end
+
+        def update(entry, params) when is_list(params), do: update(entry, :maps.from_list(params))
+        def update(entry, params) do
+          optional = (for name <- unquote(model).__schema__(:fields), do: to_string(name))
+          changeset = Ecto.Changeset.cast(entry, params, ~w(), optional)
+          if changeset.valid? do
+            _ = unquote(repo).update(changeset)
+          else
+            {:error, changeset.errors}
+          end
+        end
+
+        def subscribe(sub_info, options) do
+          Ecto.Subscribe.Api.subscribe(unquote(repo), unquote(model), sub_info, options)
         end
 
         def get(id) do
@@ -101,20 +127,11 @@ defmodule Exd.Model.Api do
           table_name = table_name(unquote(model))
           # get associations list
           assoc_list = unquote(model).__schema__(:associations)
-
-          case assoc_list do
-            [] ->
-              case unquote(repo).get Module.concat(unquote(splitten_module_name)), id, log: false do
-                nil -> {table_name, assoc_list, nil}
-                load_model -> {table_name, assoc_list, [load_model]}
-              end
-            _ ->
-              # load model
-              load_model = unquote(repo).get Module.concat(unquote(splitten_module_name)), id, log: false
-              case load_model do
-                nil -> {table_name, assoc_list, nil}
-                _ ->   {table_name, assoc_list, unquote(repo).preload([load_model], assoc_list)}
-              end
+          # load model
+          load_model = unquote(repo).get Module.concat(unquote(splitten_module_name)), id, log: false
+          case load_model do
+            nil -> nil
+            _ -> unquote(repo).preload([load_model], assoc_list)
           end
         end
 
@@ -135,16 +152,10 @@ defmodule Exd.Model.Api do
         @doc """
         Return list of {field_name, type} including association field.
         """
-        def __get_fields_with_types__(model) do
+        def __field_types__() do
+          model = unquote(model)
           primary_key = model.__schema__(:primary_key)
-          assocs = model.__schema__(:associations) |> Enum.flat_map(fn(association) ->
-            case model.__schema__(:association, association) do
-              %Ecto.Association.BelongsTo{owner_key: field, assoc: assoc_model} ->
-                [{field, table_name(assoc_model)}]
-              _ ->
-                []
-            end
-          end)
+          assocs = get_associations(model)
           {primary_key, for name <- model.__schema__(:fields) do
             case assocs[name] do
               nil ->
@@ -154,8 +165,9 @@ defmodule Exd.Model.Api do
             end
           end}
         end
-      end # endof defmodule api_module_name
-    end # endof quote do:
-  end # endof defmacro 
+        defdelegate [__schema__(target), __schema__(target, id)], to: unquote(model)
+      end
+    end
+  end
 
 end

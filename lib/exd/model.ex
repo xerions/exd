@@ -1,5 +1,5 @@
 import Ecto.Query
-import Exd.Model.Util
+import Exd.Util
 
 defmodule Exd.Model do
   defmacro __using__(_) do
@@ -8,58 +8,38 @@ defmodule Exd.Model do
     end
   end
 
-  def migrate(repo, module) do
-    Ecto.Migrator.up(repo, :crypto.rand_uniform(0, 1099511627775), extend_module_name(module, ".Migration"))
-  end
-
   def compile_migrate(repo, module, module_adds) do
-    api_mod = ((module |> Atom.to_string) <> ".Api") |> String.to_atom
-    table_name = api_mod.__tablename__(module) |> Atom.to_string
-    # get or create system table
-    system_tbl_resp = try do
-                        query = from table in Exd.Schema.SystemTable, where: table.tablename == ^table_name, select: table
-                        case repo.all(query) do
-                          [] ->
-                            []
-                          [data] ->
-                            data.metainfo
-                        end
-                      catch
-                        _x, _y ->
-                          # we have no system table - 'exd_migration', let's create it
-                          Ecto.Migrator.up(repo, :crypto.rand_uniform(0, 1099511627775), Exd.Migration.SystemTable)
-                          []
-                      end
-    #
-    # Execute migration
-    #
-    case Exd.Model.Migration.generate(module, system_tbl_resp, repo) do
-      [] ->
-        :nothing_migrate
-      mod ->
-        mod |> Code.eval_quoted
-        migrate(repo, module)
-    end
+    compile(module, module_adds)
+    Ecto.Migration.Auto.migrate(repo, module)
   end
 
-  defmacro model_add(module_add, [to: module], [do: body]) do
-    IO.inspect(body)
-    schema = unblock(body) |> List.keyfind(:schema, 0)
-    new_schema_block = case schema do
+  def compile(module, module_adds \\ []) do
+    {^module, _actual_body, body, _adds} = module.__source__()
+    new_body = Enum.reduce(module_adds, body, &(&1.__source__() |> merge_model_add(&2)))
+    gen_model(module, new_body, body, module_adds) |> Code.eval_quoted
+  end
+
+  defp merge_model_add(add_body, actual_body) do
+    add_body = unblock(add_body)
+    new_schema_block = case List.keyfind(add_body, :schema, 0) do
       {:schema, _, [name, [do: block]]} ->
         block
       {:schema, _, [[do: block]]} ->
         block
     end |> unblock
-    module = Macro.expand(module, __ENV__)
-    {^module, actual_body, body, adds} = module.__source__()
     actual_schema = {:schema, meta, [name, [do: actual_block]]} = List.keyfind(actual_body, :schema, 0)
     new_schema = {:schema, meta, [name, [do: merge_schema(new_schema_block, unblock(actual_block))]]}
-    new_body = List.keyreplace(actual_body, :schema, 0, new_schema)
+    List.keyreplace(actual_body, :schema, 0, new_schema) ++ List.keydelete(add_body, :schema, 0)
+  end
+
+  defmacro model_add(module_add, [to: module], [do: add_body]) do
+    module = Macro.expand(module, __ENV__)
+    {^module, actual_body, body, adds} = module.__source__()
+    new_body = merge_model_add(add_body, actual_body)
     quoted_model = gen_model(module, new_body, body, [module_add | adds])
     quote do
       defmodule unquote(module_add) do
-        def __source__(), do: unquote(body |> unblock |> Macro.escape)
+        def __source__(), do: unquote(add_body |> unblock |> Macro.escape)
       end
       unquote(quoted_model)
     end
@@ -82,14 +62,11 @@ defmodule Exd.Model do
     end
 
     fields = Enum.filter(all_fields, fn({:field, _, [key | _]}) when key == primary_key_field ->
-                                    false
-                                   (_) ->
-                                     true
-                                 end)
+                                         false
+                                       (_) ->
+                                         true
+                                     end)
     field_attributes = for {:field, _, [name, _, attributes]} <- all_fields, do: {name, attributes}
-
-    model_introspection = model_to_string(all_fields)
-    # Generate new schema
     attribute_options = for {name, attributes} <- field_attributes do
       quote do
         def __attribute_option__(unquote(name)), do: unquote(attributes)
@@ -100,9 +77,8 @@ defmodule Exd.Model do
       defmodule unquote(module) do
         use Ecto.Model
         @primary_key {unquote(primary_key_field), unquote(primary_key_type), unquote(primary_key_opts)}
-        unquote(schema)
-        def __introspection__, do: {unquote(name), unquote(model_introspection)}
-        def __source__, do: {unquote(module), unquote(name), unquote(Macro.escape(body)), unquote(Macro.escape(orig_body)), unquote(adds)}
+        unquote(body)
+        def __source__, do: {unquote(module), unquote(Macro.escape(body)), unquote(Macro.escape(orig_body)), unquote(adds)}
         unquote(attribute_options)
         def __attribute_option__(_), do: []
       end
