@@ -45,6 +45,22 @@ defmodule Exd.Model do
     end
   end
 
+  @doc """
+  model macro defined the module with the name as first argument and second as do body (as a normal
+  module). The model macro is replace for ecto models, for the goal to save own source and allow
+  dynamic modifications.
+
+  ## Example
+      iex> model Test do schema "test" do field :test end end
+      {:module, Test, ....}
+      iex> Test.__source__
+      {Test, [{:schema, [], ["test", [do: {:field, [line: 3], [:test]}]]}],
+             [{:schema, [], ["test", [do: {:field, [line: 3], [:test]}]]}], []}
+
+  In __source__ will be saved the model_adds, which were compiled, the original body and the body
+  with compiled module_adds.
+  """
+
   defmacro model(module, [do: block]) do
     body = unblock(block)
     gen_model(module, body, body)
