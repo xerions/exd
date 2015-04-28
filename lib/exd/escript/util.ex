@@ -83,7 +83,6 @@ defmodule Exd.Escript.Util do
     association_table = remove_struct_field(association_table)
     # get the longest field name for pretty print
     keys = for key <- Map.keys(association_table), do: Atom.to_string(key)
-    longest_key = get_the_longest_key(keys)
     IO.puts ""
     for key <- Map.keys(association_table) do
       case key do
@@ -91,29 +90,21 @@ defmodule Exd.Escript.Util do
           :pass
         _ ->
           :io.format(" ~p", [key])
-          IO.write String.duplicate(" ", longest_key - (key |> Atom.to_string |> String.length))
+          IO.write String.duplicate(" ", longest_keylength(keys) - (key |> Atom.to_string |> String.length))
           :io.format(" : ~p~n", [Map.get(association_table, key)])
       end
     end
   end
 
-  @doc false
-  def get_the_longest_key([key | keys]) do
-    get_the_longest_key(key, keys, 0)
-  end
+  @doc """
+  ## Example
 
-  def get_the_longest_key(_, [], length) do
-    length
-  end
+      iex> longest_keylength([:abc, :abcd])
+      4
 
-  def get_the_longest_key(key, [k | keys], length) do
-    case String.length(key) > length do
-      true ->
-        get_the_longest_key(k, keys, String.length(key))
-      false ->
-        get_the_longest_key(k, keys, length)
-    end
-  end
+  """
+  def longest_keylength([]), do: 0
+  def longest_keylength(keys), do: Enum.map(keys, fn(x) -> Atom.to_string(x) |> String.length end) |> Enum.max
 
   @doc false
   def get_rpc_params(model) do
@@ -132,17 +123,11 @@ defmodule Exd.Escript.Util do
   end
 
   def print_row(data, fields) do
-    longest_key = get_longest_key_helper(fields)
     for field <- fields do
       IO.write "#{field}"
-      IO.write String.duplicate(" ", longest_key - (field |> Atom.to_string |> String.length))
+      IO.write String.duplicate(" ", longest_keylength(fields) - (field |> Atom.to_string |> String.length))
       IO.write " : #{Map.get(data, field)}\n"
     end
-  end
-
-  @doc false
-  def get_longest_key_helper(fields) do
-    Enum.map(fields, &Atom.to_string/1) |> get_the_longest_key
   end
 
   @doc false
