@@ -69,36 +69,36 @@ defmodule Exd.Model do
   def gen_model(module, body, orig_body, adds \\ []) do
     schema = {:schema, meta, [name, [do: block]]} = List.keyfind(body, :schema, 0)
     all_fields = unblock(block)
-
-    {primary_key_field, primary_key_type, primary_key_opts} = case find_field_attribute(all_fields, :primary_key) do
-      [] ->
-        {:id, :integer, []}
-      [{field, type, opts}] ->
-        {field, type, Keyword.delete(opts, :primary_key)}
+    attribute_options = gen_attribute_options(all_fields)
+    quote do
+      defmodule unquote(module) do
+        use Ecto.Model
+        unquote(body)
+        def __source__, do: {unquote(module), unquote(Macro.escape(body)), unquote(Macro.escape(orig_body)), unquote(adds)}
+        unquote(attribute_options)
+      end
     end
+  end
 
-    fields = Enum.filter(all_fields, fn({:field, _, [key | _]}) when key == primary_key_field ->
-                                         false
-                                       (_) ->
-                                         true
-                                     end)
-    field_attributes = for {:field, _, [name, _, attributes]} <- all_fields, do: {name, attributes}
+  defp gen_attribute_options(all_fields) do
+    field_attributes = Enum.flat_map(all_fields, &extract_attributes(&1))
     attribute_options = for {name, attributes} <- field_attributes do
       quote do
         def __attribute_option__(unquote(name)), do: unquote(attributes)
       end
     end
-
     quote do
-      defmodule unquote(module) do
-        use Ecto.Model
-        @primary_key {unquote(primary_key_field), unquote(primary_key_type), unquote(primary_key_opts)}
-        unquote(body)
-        def __source__, do: {unquote(module), unquote(Macro.escape(body)), unquote(Macro.escape(orig_body)), unquote(adds)}
-        unquote(attribute_options)
-        def __attribute_option__(_), do: []
-      end
+      unquote(attribute_options)
+      def __attribute_option__(_), do: []
     end
+  end
+
+  defp extract_attributes({:field, _, [name, _, attributes]}),      do: [{name, attributes}]
+  defp extract_attributes({:belongs_to, _, [name, _, attributes]}), do: [{belongs_to_name(name, attributes), attributes}]
+  defp extract_attributes(_),                                       do: []
+
+  defp belongs_to_name(name, attributes) do
+    attributes[:foreign_key] || :"#{name}_id"
   end
 
   defp merge_schema([do: adds], model), do: merge_schema(unblock(adds), model)
