@@ -11,22 +11,10 @@ defmodule Exd.Util do
     end
   end
 
-  def get_associations(module) do
-    module.__schema__(:associations) |> Enum.flat_map(fn(association) ->
-      case module.__schema__(:association, association) do
-        %Ecto.Association.BelongsTo{owner_key: field, assoc: assoc_module} ->
-          [{field, table_name(assoc_module), assoc_module}]
-        _ ->
-          []
-      end
-    end)
-  end
-
   def model_to_string(fields) do
     fields_length = for {field_name, _, _} <- fields, do:	{length(field_name |> to_string), field_name}
 
     {max_field_len, _} = max fields_length
-    {min_field_len, _} = min fields_length
 
 		title = " | Field" <> spaces(:'| Type', max_field_len + 1) <> "| Type"
     title_len = length(title)

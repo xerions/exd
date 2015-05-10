@@ -1,5 +1,5 @@
 defmodule Exd.Builder.Where do
-  def build(query, %{where: where_string}, fields_with_types) do
+  def build(query, %{"where" => where_string}, fields_with_types) do
     query_structure = build(where_string, fields_with_types)
     Map.put(query, :wheres, [%Ecto.Query.QueryExpr{expr: query_structure}])
   end

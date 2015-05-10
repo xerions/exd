@@ -7,3 +7,4 @@ erl_crash.dump
 *.ez
 .compile.elixir
 mix.lock
+/lib/exd/test.ex

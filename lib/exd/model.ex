@@ -1,7 +1,35 @@
-import Ecto.Query
-import Exd.Util
-
 defmodule Exd.Model do
+  @doc """
+  Defines extra layer on ecto models for allowing somewhat configuration-based runtime model extending.
+  It allows to define `model`s and `model_add`s.
+
+  ## Example of usage
+
+      import Exd.Model
+      model Test do
+        schema "test" do
+          field :test
+        end
+      end
+
+  It translates underhood to
+
+      defmodule Test do
+        use Ecto.Model
+        def name,  do: __schema__(:source)
+        schema "test" do
+          field :test
+        end
+        def __source__ do
+          {Test,
+           [{:schema, meta, ["test", [do: {:field, meta, [:test]}]]}],
+           [{:schema, meta, ["test", [do: {:field, meta, [:test]}]]}],
+          []}
+        end
+
+        def __attribute_option__(_),     do: []
+      end
+  """
   defmacro __using__(_) do
     quote do
       import Exd.Model, only: [model: 2]
@@ -22,12 +50,12 @@ defmodule Exd.Model do
   defp merge_model_add(add_body, actual_body) do
     add_body = unblock(add_body)
     new_schema_block = case List.keyfind(add_body, :schema, 0) do
-      {:schema, _, [name, [do: block]]} ->
+      {:schema, _, [_name, [do: block]]} ->
         block
       {:schema, _, [[do: block]]} ->
         block
     end |> unblock
-    actual_schema = {:schema, meta, [name, [do: actual_block]]} = List.keyfind(actual_body, :schema, 0)
+    _actual_schema = {:schema, meta, [name, [do: actual_block]]} = List.keyfind(actual_body, :schema, 0)
     new_schema = {:schema, meta, [name, [do: merge_schema(new_schema_block, unblock(actual_block))]]}
     List.keyreplace(actual_body, :schema, 0, new_schema) ++ List.keydelete(add_body, :schema, 0)
   end
@@ -51,11 +79,17 @@ defmodule Exd.Model do
   dynamic modifications.
 
   ## Example
-      iex> model Test do schema "test" do field :test end end
-      {:module, Test, ....}
-      iex> Test.__source__
-      {Test, [{:schema, [], ["test", [do: {:field, [line: 3], [:test]}]]}],
-             [{:schema, [], ["test", [do: {:field, [line: 3], [:test]}]]}], []}
+
+      iex> import Exd.Model
+      ...> model Test do
+      ...>   schema "test" do
+      ...>     field :test
+      ...>   end
+      ...> end
+      ...> {Test, actual_body, _, []} = Test.__source__
+      ...> [{:schema, _, [schema_name, [do: {:field, _, [:test]}]]}] = actual_body
+      ...> schema_name
+      "test"
 
   In __source__ will be saved the model_adds, which were compiled, the original body and the body
   with compiled module_adds.
@@ -67,12 +101,14 @@ defmodule Exd.Model do
   end
 
   def gen_model(module, body, orig_body, adds \\ []) do
-    schema = {:schema, meta, [name, [do: block]]} = List.keyfind(body, :schema, 0)
+    _schema = {:schema, _meta, [_name, [do: block]]} = List.keyfind(body, :schema, 0)
     all_fields = unblock(block)
     attribute_options = gen_attribute_options(all_fields)
     quote do
       defmodule unquote(module) do
         use Ecto.Model
+        def name,  do: __schema__(:source)
+        defoverridable [name: 0]
         unquote(body)
         def __source__, do: {unquote(module), unquote(Macro.escape(body)), unquote(Macro.escape(orig_body)), unquote(adds)}
         unquote(attribute_options)
