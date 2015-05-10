@@ -1,138 +1,131 @@
 defmodule Exd.Escript.Main do
-  import Exd.Escript.Util
+  @parse_opts [switches: [formatter: :string, input: :string, remoter: :string]]
+  def main(args) do
+    {opts, args, _} = OptionParser.parse(args, @parse_opts)
+    remoter = Exd.Escript.Remoter.get( opts[:remoter] || "dist" ) || fail("remoter: #{opts[:remoter]} not supported")
+    local_apps = remoter.applications()
+    main(args, opts, script, remoter, local_apps)
+  end
 
-  @doc """
-  exd escript 'update' API.
-
-  Usage
-    escript_name node@name MyModel id_number update foo: bar
-  """
-  def main([]) do
-    script = script
+  def main([], _opts, script, _remoter, local_apps) do
+    apps = local_apps |> Stream.map(&elem(&1, 0)) |> Enum.join(", ")
+    example_app = map_key(local_apps, "app")
+    example_api = local_apps[example_app] |> map_key("api")
+    link = "#{ example_app }/#{ example_api }"
     IO.puts """
-#{script} usage:
+usage: #{script} <command> <link> <data...> <opts...>
 
-  #{script} node@host - connects to nodes and print available models
+commands:
+  option - introspection of resources
+  get    - get actual resource
+  insert - create resource
+  put    - update existing resource
+  delete - delete a resource
 
+link:
+  <app>
+  <app>/<model>
+
+data: should be given in input format(defaults to native: <key>:<value>)
+
+available applications: #{apps}
+
+example of usage:
+
+  #{script} option #{example_app}
+  #{script} option #{link}
+  #{script} get #{link} id:1
+  #{script} get #{link} where:"id < 10" limit:5 offset:5
+  #{script} insert #{link} key:value
+  #{script} update #{link} id:1 key:value
+  #{script} delete #{link} id:1
+
+aliases:
+
+  #{script} list #{link}
+
+available opts:
+
+  --formatter native|json - formats the reply, defaults to native
+  --input native|json - payload input format, defaults to native
+  --remoter dist|zmtp - transport to communicate remote services
 """
   end
 
-  def main([node | args]) do
-    escript_module = String.to_atom(Atom.to_string(script) <> "_escript")
-    escript_module.start_app(:exd)
-    on_connect(node, args)
+  def main([command, link | payload], opts, script, remoter, local_apps) do
+    [app | link_rest] = String.split(link, "/")
+    apis = local_apps[app] || fail("application: #{app} not found")
+    on_app(command, opts, app, link_rest, payload, apis, script, remoter)
   end
 
-  def on_connect(node, args) do
-    node = connect(node) || fail("failed to connect to #{node}")
-    {:ok, modules} = rpc(node, :application.get_key(script, :modules))
-    modules = Enum.filter modules, fn(module) ->
-      if to_string(module) =~ ~r/.*\.Api$/ do
-        rpc(node, module.__info__(:functions))[:introspection]
-      end
-    end
-    model_list = for module <- modules, into: %{}, do: {rpc(node, module.__schema__(:source)), module}
-    case args do
-      []      ->
-        print_all_models(node, model_list)
-      [model | next_args] ->
-        module = model_list[model] || fail("model #{model} is unknown")
-        main(node, model, module, next_args)
-    end
-  end
+  #defp main(node, _model, api, "list", []) do
+  #  select(node, api, %{})
+  #end
 
-  defp main(node, model, api, []) do
-    script = script
-    {introspection, actions} = rpc(node, api.introspection())
+  #defp main(node, _, api, "subscribe", ["where" | subscription_info]) do
+  #  sub_info = Enum.reduce(subscription_info, "", fn(info, acc) -> info <> " " <> acc <> " " end) |> String.rstrip
+  #  rpc(node, api.subscribe(sub_info, [adapter: Ecto.Subscribe.Adapter.Remote, receiver: node()])) |> IO.inspect
+  #  :timer.sleep(:infinity)
+  #end
 
-    introspection_string = Exd.Util.model_to_string(introspection) |> Enum.join("\n")
+  defp on_app("option", _opts, app, [], _, apis, script, _remoter) do
     IO.puts """
-#{script} #{node} #{model}
+link: #{app}
 
-#{introspection_string}
-
-Available actions: #{Enum.join(actions, ", ")}
+available apis:
+#{ Enum.map(apis, &print_api(&1, script)) }
 """
   end
 
-  defp main(node, model, api, [action | values]), do: main(node, model, api, action, values)
-
-  defp main(node, _model, api, "insert", values) do
-    fields = rpc(node, api.__schema__(:fields))
-    formated_fields = Enum.zip(fields, values)
-    rpc(node, api.insert(formated_fields)) |> change_result
+  defp on_app(command, opts, app, [api], payload, apis, script, remoter) do
+    api_map = apis[api] || fail("application: #{app}: api #{api} not found")
+    IO.puts("link: #{app}/#{api}")
+    on_command(command, opts, api_map, payload, script, remoter)
   end
 
-  defp main(node, _model, api, "get", [id]) do
-    fields = rpc(node, api.__schema__(:fields))
-    on_get(node, api, id, fn(row) -> print_row(row, fields) end)
+  defp on_command(command, opts, api, payload, _script, remoter) do
+    payload_map = payload(payload, opts[:input] || "native")
+    result = remoter.remote(api, command, payload_map)
+    result_to_string(command, opts[:formatter] || "native", result) |> IO.puts
   end
 
-  defp main(node, _model, api, "update", [id | update_content]) do
-    on_get(node, api, id, fn(row) ->
-      update_fields = Enum.chunk(update_content, 2) |> Enum.map(&List.to_tuple/1)
-      rpc(node, api.update(row, update_fields)) |> change_result
-    end)
+  defp print_api({tech_name, %{app: app, name: name, doc: doc}}, script) do
+    "  #{tech_name} - #{name}: #{doc}    example: #{script} option #{app}/#{tech_name}"
   end
 
-  defp main(node, _model, api, "delete", [id]) do
-    on_get(node, api, id, fn(row) ->
-      rpc(node, api.delete(row)) |> change_result
-    end)
+  defp result_to_string(_command, "native", result) do
+    "#{inspect result}"
   end
 
-  defp main(node, _model, api, "delete_all", []) do
-    rpc(node, api.delete_all())
+  defp result_to_string(_command, "json", result) do
+    Poison.encode!(result) |> :jsx.prettify
   end
 
-  defp main(node, _model, api, "list", []) do
-    select(node, api, %{})
+  #defp select(node, api, query_content) do
+  #  case rpc(node, api.select_on(query_content)) do
+  #    [] ->
+  #      IO.puts "Nothing found"
+  #    query_result ->
+  #      fields = rpc(node, api.__schema__(:fields))
+  #      String.duplicate("-", 80) |> IO.puts
+  #      for row <- query_result, do: print_row(row, fields)
+  #      String.duplicate("-", 80) |> IO.puts
+  #  end
+  #end
+
+  defp payload(payload, "native") do
+    splited = Enum.map(payload, &String.split(&1, ":"))
+    Enum.all?(splited, &(length(&1) == 2)) || fail("payload should be in form of <key>:<value>")
+    splited |> Enum.map(&List.to_tuple/1) |> Enum.into(%{})
   end
 
-  defp main(node, _model, api, "select", query_content) do
-    query_content = Enum.chunk(query_content, 2) |> Enum.map(fn([type, value]) -> {String.to_atom(type), value} end) |> Enum.into(%{})
-    select(node, api, query_content)
-  end
+  defp script, do: :escript.script_name |> Path.basename |> String.to_atom
 
-  defp main(node, _, api, "subscribe", ["where" | subscription_info]) do
-    sub_info = Enum.reduce(subscription_info, "", fn(info, acc) -> info <> " " <> acc <> " " end) |> String.rstrip
-    rpc(node, api.subscribe(sub_info, [adapter: Ecto.Subscribe.Adapter.Remote, receiver: node()])) |> IO.inspect
-    :timer.sleep(:infinity)
-  end
+  defp map_key(map, _default) when map_size(map) > 0, do: map |> Map.keys |> hd()
+  defp map_key(_map, default), do: default
 
-  defp select(node, api, query_content) do
-    case rpc(node, api.select_on(query_content)) do
-      [] ->
-        IO.puts "Nothing found"
-      query_result ->
-        fields = rpc(node, api.__schema__(:fields))
-        String.duplicate("-", 80) |> IO.puts
-        for row <- query_result, do: print_row(row, fields)
-        String.duplicate("-", 80) |> IO.puts
-    end
-  end
-
-  defp change_result({:badrpc, error}), do: IO.inspect(error)
-  defp change_result({:error, errors}), do: IO.inspect(errors)
-  defp change_result(model), do: IO.puts("id: #{model.id}")
-
-  defp on_get(node, api, id, fun) do
-    case rpc(node, api.get(id)) do
-      nil ->
-        IO.puts "Result: #{id} not found"
-      [row] ->
-        fun.(row)
-    end
-  end
-
-  def print_all_models(node, model_list) do
-    script = script
-    IO.puts """
-#{script} #{node}:
-
-available models: #{Enum.map(model_list, &elem(&1, 0)) |> Enum.join(" ")}
-
-introspection of a model: #{script} #{node} <model>
-"""
+  defp fail(message) do
+    IO.puts(message)
+    :erlang.halt(1)
   end
 end

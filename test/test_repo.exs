@@ -7,5 +7,3 @@ model TestTable do
     field :field_2, :integer
   end
 end
-
-gen_api TestTable, Test.Repo

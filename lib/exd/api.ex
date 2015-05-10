@@ -1,173 +1,133 @@
-defmodule Exd.Model.Api do
-  import Ecto.Query
+defmodule Exd.Api do
   import Exd.Util
+  @moduledoc ~S"""
+  This module defines set of functions for introspection an API, defined on model.
 
-  @doc """
-  Generate new module with model API.
+  ## Example of definition
 
-  Usage:
-    gen_api MyApp.User MyApp.Repo
-
-  Result:
-    MyApp.User.Api module with introspection API
-  """
-  defmacro gen_api({_, _, splitten_module_name} = model, repo) do
-    api_module_name = extend_module_name(Module.concat(splitten_module_name), ".Api")
-    quote location: :keep do
-      defmodule unquote(api_module_name) do
-        import Exd.Util
-        import Ecto.Query
-
-        def introspection do
-          fields = unquote(model).__schema__(:fields)
-          associations = get_associations(unquote(model))
-          fields = for field <- fields do
-            case List.keyfind(associations, field, 0) do
-              {_, table, _} -> {field, :integer, table}
-              nil -> {field, unquote(model).__schema__(:field, field), ""}
-            end
-          end
-          actions = unquote(model).__info__(:functions) |> Enum.flat_map(fn({function, _}) ->
-            case to_string(function) do
-              "__action__" <> action ->
-                [action]
-              _ ->
-                []
-            end
-          end)
-          {fields, ["insert", "get", "update", "select" | actions]}
-        end
-
-        def empty_query(), do: from(table in unquote(model))
-
-        def delete_all(),  do: unquote(repo).delete_all(unquote(model))
-        def delete(entry), do: unquote(repo).delete(entry)
-        def select(query), do: unquote(repo).all(query)
-
-        def select_on(query_content) do
-          {_primary_key, fields_with_types} = __field_types__()
-          Exd.Builder.Where.build(empty_query, query_content, fields_with_types) |> Exd.Builder.QueryExpr.build(query_content) |> select
-        end
-
-        def select(query) do
-          model = unquote(model)
-          # get all fields for this model with thier types
-          {_primary_key, fields_with_types} =  __field_types__()
-          # get associations
-          associations = unquote(model).__schema__(:associations)
-          # build empty query
-          empty_query = from table in model, preload: ^associations, select: table
-          #
-          # find where clause and build it if it is
-          #
-          is_where_clause = List.keyfind(query, :where, 0)
-          where_str = case is_where_clause do
-                        nil -> ""
-                        {:where, where_clause} ->
-                          for element <- where_clause do
-                            case element do
-                              {key, op, val} ->
-                                (key |> Atom.to_string) <> " " <> (op |> Atom.to_string) <> " " <> Kernel.to_string(val)
-                              op ->
-                                (op |> Atom.to_string)
-                            end
-                          end |> Enum.join(" ")
-                      end
-
-          # update query with where clause
-          where_struct = Exd.Builder.Where.build_where_clause_from_string(where_str, fields_with_types)
-          # update query with limit clause
-          formed_query = Map.put(empty_query, :wheres, [%Ecto.Query.QueryExpr{__struct__: :'Elixir.Ecto.Query.QueryExpr', expr: where_struct}])
-
-          formed_query = __query_clause_helper__(query, formed_query, :limit)
-          formed_query = __query_clause_helper__(query, formed_query, :offset)
-          formed_query = __query_clause_helper__(query, formed_query, :distincts)
-
-          # Execute query
-          select(formed_query)
-        end
-
-        def __query_clause_helper__(query, query_content, field) do
-          case List.keyfind(query, field, 0) do
-            nil ->
-              query_content
-            {field, val} ->
-              Map.put(query_content, field, %Ecto.Query.QueryExpr{__struct__: :'Ecto.Query.QueryExpr', expr: val})
-          end
-        end
-
-        def insert(params) when is_list(params), do: insert(:maps.from_list(params))
-        def insert(params) do
-          required = (for name <- unquote(model).__schema__(:fields), do: to_string(name))
-          changeset = Ecto.Changeset.cast(%unquote(model){}, params, required, ~w())
-          if changeset.valid? do
-            _ = unquote(repo).insert(changeset)
-          else
-            {:error, changeset.errors}
-          end
-        end
-
-        def update(entry, params) when is_list(params), do: update(entry, :maps.from_list(params))
-        def update(entry, params) do
-          optional = (for name <- unquote(model).__schema__(:fields), do: to_string(name))
-          changeset = Ecto.Changeset.cast(entry, params, ~w(), optional)
-          if changeset.valid? do
-            _ = unquote(repo).update(changeset)
-          else
-            {:error, changeset.errors}
-          end
-        end
-
-        def subscribe(sub_info, options) do
-          Ecto.Subscribe.Api.subscribe(unquote(repo), unquote(model), sub_info, options)
-        end
-
-        def get(id) do
-          # get table name to prevent has_many return
-          table_name = table_name(unquote(model))
-          # get associations list
-          assoc_list = unquote(model).__schema__(:associations)
-          # load model
-          load_model = unquote(repo).get Module.concat(unquote(splitten_module_name)), id, log: false
-          case load_model do
-            nil -> nil
-            _ -> unquote(repo).preload([load_model], assoc_list)
-          end
-        end
-
-        @doc """
-        Return associations
-        """
-        def __associations__(model) do
-          model.__schema__(:associations)
-        end
-
-        @doc """
-        Return the name of a table
-        """
-        def __tablename__(model) do
-          table_name(model)
-        end
-
-        @doc """
-        Return list of {field_name, type} including association field.
-        """
-        def __field_types__() do
-          model = unquote(model)
-          primary_key = model.__schema__(:primary_key)
-          assocs = get_associations(model)
-          {primary_key, for name <- model.__schema__(:fields) do
-            case assocs[name] do
-              nil ->
-                {name, model.__schema__(:field, name)}
-              _ ->
-                {name, Ecto.Migration.references(assocs[name]).type}
-            end
-          end}
-        end
-        defdelegate [__schema__(target), __schema__(target, id)], to: unquote(model)
+      import Exd.Model
+      model Example do
+        field :test1
+        field :test2
       end
+      defmodule Example.Api do
+        @moduledoc "Example API documentation"
+        @name "Example"
+        @tech_name "example"
+        use Exd.Api, model: Example, repo: EctoIt.Repo
+      end
+
+  Any Exd.Api will generate some module attributes, which should be overriden, if they differentate
+  from model use case.
+
+  * `@exported`  - Defines attributes, which are exported with Api
+  * `@required`  - Defines attributes, which are required on creation
+  * `@read_only` - Defines attributes, which can be readed, but can't be modified
+  * `@model`     - Defined on use model
+  * `@repo`      - Defined on use repo
+
+  * `__exd_api__(:model)`     - Returns an model of an API
+  * `__exd_api__(:repo)`      - Returns an repo of an model
+  * `__exd_api__(:instance)`  - Returns instance of model;
+  * `__exd_api__(:exported)`  - Returns all exported attributes
+  * `__exd_api__(:read_only)` - Returns only read_only attributes (defaults to `:id` `:inserted_at`, `:updated_at`)
+  * `__exd_api__(:required)`  - Returns required for creation attributes
+  * `__exd_api__(:optional)`  - Returns optional for creation attributes
+  * `__exd_api__(:changable)` - Returns changable for update attributes
+
+  """
+
+  @field_map %{name: nil, type: nil, datatype: nil, description: nil, relation: ""}
+  @doc ~S"""
+  Doing introspection of an api of a model.
+  """
+  def introspection(api) do
+    fields    = api.__exd_api__(:exported)
+    required  = api.__exd_api__(:required)
+    read_only = api.__exd_api__(:read_only)
+    model     = api.__exd_api__(:model)
+    associations = get_associations(api)
+    fields = for field <- fields do
+      field_map = %{ @field_map | name: field,
+                                  datatype: datatype(api, field),
+                                  description: model.__attribute_option__(field)[:desc] || "",
+                                  type: mandantory(field, required, read_only) }
+      case List.keyfind(associations, field, 0) do
+        {_, table, _} -> %{field_map | relation: table}
+        nil           -> field_map
+      end
+    end
+    %{name:        Apix.spec(api),
+      desc_name:   Apix.spec(api, :name),
+      description: Apix.spec(api, :doc),
+      methods:     Apix.spec(api, :methods),
+      fields:      fields}
+  end
+
+  defp datatype(api, field) do
+    type = api.__schema__(:field, field)
+    if function_exported?(type, :type, 0) do type.type else type end
+  end
+
+  defp mandantory(field, required, read_only) do
+    case {field in required, field in read_only} do
+      {true, false}  -> :mandantory
+      {false, true}  -> :read_only
+      {false, false} -> :optional
     end
   end
 
+  defp get_associations(module) do
+    module.__schema__(:associations) |> Enum.flat_map(fn(association) ->
+      case module.__schema__(:association, association) do
+        %Ecto.Association.BelongsTo{owner_key: field, assoc: assoc_module} ->
+          [{field, table_name(assoc_module), assoc_module}]
+        _ ->
+          []
+      end
+    end)
+  end
+
+  defmacro __using__(opts) do
+    model = opts[:model] || raise ArgumentError, message: "Api should have `model` in options"
+    repo = opts[:repo] || raise ArgumentError, message: "Api should have `repo` in options"
+    quote do
+      use Apix
+      import Exd.Api, only: :macros
+      import Exd.Api.Crud, only: :macros
+      @before_compile Exd.Api
+
+      require unquote(model)
+      @model unquote(model)
+      @repo  unquote(repo)
+      @exported @model.__schema__(:fields)
+      @read_only [:id, :inserted_at, :updated_at]
+      @required @exported -- @read_only
+
+      api "option", :__option__
+      @doc """
+      Introspection of #{@name} API.
+      """
+      def __option__(_args), do: Exd.Api.introspection(__MODULE__)
+      defdelegate [__schema__(target), __schema__(target, id)], to: unquote(model)
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    module = env.module
+    [required, exported, read_only] = for attr <- [:required, :exported, :read_only], do: Module.get_attribute(module, attr)
+    quote bind_quoted: [exported: exported, read_only: read_only, required: required] do
+      def __exd_api__(:model),     do: @model
+      def __exd_api__(:repo),      do: @repo
+      def __exd_api__(:instance),  do: @model.__struct__
+      def __exd_api__(:exported),  do: @exported
+      def __exd_api__(:read_only), do: @read_only
+      def __exd_api__(:required),  do: @required
+
+      @optional  (exported -- read_only) -- required
+      @changable (exported -- read_only)
+      def __exd_api__(:optional),  do: @optional
+      def __exd_api__(:changable), do: @changable
+    end
+  end
 end

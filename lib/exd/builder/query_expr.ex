@@ -7,7 +7,7 @@ defmodule Exd.Builder.QueryExpr do
 
   @doc false
   def build_expr(query, query_content, {query_field, type}) do
-    case query_content[query_field] do
+    case query_content[to_string(query_field)] do
       nil ->
         query
       value ->
