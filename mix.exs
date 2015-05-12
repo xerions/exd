@@ -13,7 +13,7 @@ defmodule Exd.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger],
+    [applications: [:logger, :ecto, :ecto_migrate, :apix],
      mod: {Exd, []}]
   end
 
@@ -29,14 +29,14 @@ defmodule Exd.Mixfile do
   defp deps do
     [{:postgrex, ">= 0.0.0", optional: true},
      {:mariaex, ">= 0.1.0", optional: true},
-     #{:hello, github: "liveforeverx/hello", branch: "hello_v3", optional: true},
+     {:ecto_it, "~> 0.1.0", optional: true},
+     {:hello, github: "travelping/hello", branch: "hello_v3", optional: true},
 
      {:lager, "~> 2.1.1", override: true},
      {:jsx, "~> 2.6.0", override: true},
      {:exscript, "~> 0.0.1"},
      {:apix, github: "liveforeverx/apix"},
      {:ecto, "~> 0.11.0"},
-     {:ecto_it, "~> 0.1.0"},
      {:ecto_migrate, "~> 0.1.0"},
      {:poison, "~> 1.4.0"}]
   end

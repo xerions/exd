@@ -1,7 +1,7 @@
 if Mix.env == :test do
   import Exd.Model
 
-  model Weather do
+  defmodule Weather do
     schema "weather" do
       field :city
       field :temp_lo, :integer

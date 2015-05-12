@@ -16,6 +16,8 @@ defmodule Exd.Api.Crud do
         crud
       end
 
+  ## Crud apis
+
   For more selective api definition, it is possible to add option `:only`.
 
       defmodule Example.Api do
@@ -32,9 +34,9 @@ defmodule Exd.Api.Crud do
 
   ## Examples
 
-    iex> Exd.Api.Crud.get(api, %{"id" => 1})
-    iex> Exd.Api.Crud.get(api, %{"name" => "test"})
-    iex> Exd.Api.Crud.get(api, %{"where" => "id < 5", "limit" => "5"})
+      iex> Exd.Api.Crud.get(api, %{"id" => 1})
+      iex> Exd.Api.Crud.get(api, %{"name" => "test"})
+      iex> Exd.Api.Crud.get(api, %{"where" => "id < 5", "limit" => "5"})
 
   """
   def get(api, %{"where" => _} = params) do
@@ -140,11 +142,18 @@ defmodule Exd.Api.Crud do
   defp export_data(%{id: id} = data, opts \\ [as: :get]) do
     case opts[:as] do
       :get ->
-        Map.drop(data, [:__meta__, :__struct__])
+        Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform_structs/1)
       :write ->
         %{id: id}
     end
   end
+
+  defp filter_assocs({_key, %Ecto.Association.NotLoaded{}}), do: false
+  defp filter_assocs({_key, _}), do: true
+
+  # Brutal hack
+  defp transform_structs({key, %{__struct__: Ecto.DateTime} = struct}), do: {key, Ecto.DateTime.to_iso8601(struct)}
+  defp transform_structs({key, value}), do: {key, value}
 
   @default_crud [:get, :insert, :put, :delete]
   defmacro crud(opts \\ []) do
