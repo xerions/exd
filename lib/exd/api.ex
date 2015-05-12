@@ -17,7 +17,9 @@ defmodule Exd.Api do
         use Exd.Api, model: Example, repo: EctoIt.Repo
       end
 
-  Any Exd.Api will generate some module attributes, which should be overriden, if they differentate
+  The `Exd.Api` automaticly imports `Exd.Api.Crud.crud/0` macro.
+
+  Any `Exd.Api` will generate some module attributes, which should be overriden, if they differentate
   from model use case.
 
   * `@exported`  - Defines attributes, which are exported with Api
