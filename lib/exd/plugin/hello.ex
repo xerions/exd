@@ -19,7 +19,7 @@ if Code.ensure_loaded?(:hello) do
 
         def init(identifier, _), do: {:ok, nil}
         def handle_request(_context, method, args, state) do
-          {:stop, Exd.Plugin.Hello.handle_request(__MODULE__, method, args), state}
+          {:reply, Exd.Plugin.Hello.handle_request(__MODULE__, method, args), state}
         end
 
         def handle_info(_context, _message, state), do: {:noreply, state}
