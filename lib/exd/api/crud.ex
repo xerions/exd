@@ -28,6 +28,14 @@ defmodule Exd.Api.Crud do
   """
   import Ecto.Query
 
+  defmacrop repo(api) do
+    quote do: unquote(api).__exd_api__(:repo)
+  end
+  defmacrop model(api) do
+    quote do: unquote(api).__exd_api__(:model)
+  end
+
+
   @doc """
   Generic get function. There are different possiblities to get results. It possible to get results
   directly on `id`, on `name` (if defined in model). Or, due to query clauses.
@@ -49,25 +57,30 @@ defmodule Exd.Api.Crud do
     end
   end
 
-  defp get_one(api, %{"id" => id}) do
-    case api.__exd_api__(:repo).get(api.__exd_api__(:model), id) do
+  defp get_one(api, %{"id" => id} = params) do
+    case repo(api).get(model(api), id) do
       nil    -> nil
-      result -> result
+      result -> result |> load(api, params)
     end
   end
-  defp get_one(api, %{"name" => name}) do
-    case api.__exd_api__(:repo).get_by(api.__exd_api__(:model), name: name) do
+  defp get_one(api, %{"name" => name} = params) do
+    case repo(api).get_by(model(api), name: name) do
       nil    -> nil
-      result -> result
+      result -> result |> load(api, params)
     end
   end
 
+  defp load(data, api, params) do
+    repo(api).preload(data, Exd.Builder.Load.preload(params, model(api)))
+  end
+
   defp select(api, params) do
-    model = api.__exd_api__(:model)
+    model = model(api)
     field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
     from(m in model) |> Exd.Builder.Where.build(params, field_types)
                      |> Exd.Builder.QueryExpr.build(params)
-                     |> (api.__exd_api__(:repo)).all
+                     |> Exd.Builder.Load.build(params)
+                     |> (repo(api)).all
                      |> Enum.map(&export_data/1)
   end
 
@@ -84,7 +97,7 @@ defmodule Exd.Api.Crud do
   def insert(api, params) do
     changeset = changeset(api.__exd_api__(:instance), api, :create, params)
     if changeset.valid? do
-      api.__exd_api__(:repo).insert(changeset) |> export_data(as: :write)
+      repo(api).insert(changeset) |> export_data(as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -110,14 +123,14 @@ defmodule Exd.Api.Crud do
   def put(data, api, params) do
     changeset = changeset(data, api, :update, params)
     if changeset.valid? do
-      api.__exd_api__(:repo).update(changeset) |> export_data(as: :write)
+      repo(api).update(changeset) |> export_data(as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
   end
 
   defp changeset(data, api, action, params) do
-    if function_exported?(api.__exd_api__(:model), :changeset, 3) do
+    if function_exported?(model(api), :changeset, 3) do
       api.model.changeset(data, action, params)
     else
       {required, optional} = if action == :create do
@@ -135,14 +148,14 @@ defmodule Exd.Api.Crud do
   def delete(api, params) do
     case get_one(api, params) do
       nil    -> nil
-      result -> api.__exd_api__(:repo).delete(result) |> export_data(as: :write)
+      result -> repo(api).delete(result) |> export_data(as: :write)
     end
   end
 
   defp export_data(%{id: id} = data, opts \\ [as: :get]) do
     case opts[:as] do
       :get ->
-        Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform_structs/1)
+        Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform/1)
       :write ->
         %{id: id}
     end
@@ -152,8 +165,9 @@ defmodule Exd.Api.Crud do
   defp filter_assocs({_key, _}), do: true
 
   # Brutal hack
-  defp transform_structs({key, %{__struct__: Ecto.DateTime} = struct}), do: {key, Ecto.DateTime.to_iso8601(struct)}
-  defp transform_structs({key, value}), do: {key, value}
+  defp transform({key, %{__struct__: Ecto.DateTime} = struct}), do: {key, Ecto.DateTime.to_iso8601(struct)}
+  defp transform({key, list}) when is_list(list), do: {key, Enum.map(list, &export_data/1)}
+  defp transform({key, value}), do: {key, value}
 
   @default_crud [:get, :insert, :put, :delete]
   defmacro crud(opts \\ []) do

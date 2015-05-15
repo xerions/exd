@@ -132,8 +132,8 @@ Model-driven development
 
 For different APIs, there should be an adaptor, which allows to define the model API in consistent way. There are 2 examples at the moment:
 
-* json-rpc - all data manipulation should be consistent with different models and the code should be written only once.
-* CLI - it should be possible to query with CLI the application data (example can be 'my_script select user where id == 1' and it should be possible for every model in consistent way [WiP])
+* json-rpc - all data manipulation should be consistent with different models and the code should be written only once. ( `Exd.Plugin.Hello` - build-in example).
+* CLI - see `CLI` section
 
 Tests
 -----
