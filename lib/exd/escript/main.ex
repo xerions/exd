@@ -16,11 +16,11 @@ defmodule Exd.Escript.Main do
 usage: #{script} <command> <link> <data...> <opts...>
 
 commands:
-  option - introspection of resources
-  get    - get actual resource
-  insert - create resource
-  put    - update existing resource
-  delete - delete a resource
+  options - introspection of resources
+  get     - get actual resource
+  insert  - create resource
+  put     - update existing resource
+  delete  - delete a resource
 
 link:
   <app>
@@ -32,8 +32,8 @@ available applications: #{apps}
 
 example of usage:
 
-  #{script} option #{example_app}
-  #{script} option #{link}
+  #{script} options #{example_app}
+  #{script} options #{link}
   #{script} get #{link} id:1
   #{script} get #{link} where:"id < 10" limit:5 offset:5
   #{script} insert #{link} key:value
@@ -68,7 +68,7 @@ available opts:
   #  :timer.sleep(:infinity)
   #end
 
-  defp on_app("option", _opts, app, [], _, apis, script, _remoter) do
+  defp on_app("options", _opts, app, [], _, apis, script, _remoter) do
     IO.puts """
 link: #{app}
 

@@ -7,14 +7,18 @@ defmodule Exd.Api do
 
       import Exd.Model
       model Example do
-        field :test1
-        field :test2
+        schema "weather" do
+          field :test1
+          field :test2
+          timestamps
+        end
       end
       defmodule Example.Api do
         @moduledoc "Example API documentation"
         @name "Example"
         @tech_name "example"
         use Exd.Api, model: Example, repo: EctoIt.Repo
+        crud
       end
 
   The `Exd.Api` automaticly imports `Exd.Api.Crud.crud/0` macro.
@@ -42,6 +46,20 @@ defmodule Exd.Api do
   @field_map %{name: nil, type: nil, datatype: nil, description: nil, relation: ""}
   @doc ~S"""
   Doing introspection of an api of a model.
+
+  ## Example
+
+      iex> Exd.Api.introspection(Example.Api)
+      %{name: "example",
+        desc_name: "Example",
+        description: "Example API documentation",
+        methods: ["options", "get", "inser", "put", "delete"],
+        fields:
+         [%{datatype: :integer, description: "", name: :id, relation: "", type: :read_only},
+          %{datatype: :string, description: "", name: :test1, relation: "", type: :mandatory},
+          %{datatype: :string, description: "", name: :test2, relation: "", type: :mandatory},
+          %{datatype: :datetime, description: "", name: :inserted_at, relation: "", type: :read_only},
+          %{datatype: :datetime, description: "", name: :updated_at, relation: "", type: :read_only}]}
   """
   def introspection(api) do
     fields    = api.__exd_api__(:exported)
@@ -106,11 +124,12 @@ defmodule Exd.Api do
       @read_only [:id, :inserted_at, :updated_at]
       @required @exported -- @read_only
 
-      api "option", :__option__
+      api "options", :__options__
       @doc """
-      Introspection of #{@name} API.
+      Method: `options`.
+      Introspection of #{String.downcase(@name)} API.
       """
-      def __option__(_args), do: Exd.Api.introspection(__MODULE__)
+      def __options__(_args), do: Exd.Api.introspection(__MODULE__)
       defdelegate [__schema__(target), __schema__(target, id)], to: unquote(model)
     end
   end

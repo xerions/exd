@@ -1,12 +1,12 @@
 if Mix.env == :test do
   import Exd.Model
-
-  defmodule Weather do
+  model Weather do
     schema "weather" do
       field :city
       field :temp_lo, :integer
       field :temp_hi, :integer
       field :prcp,    :float, default: 0.0
+      timestamps
     end
   end
 

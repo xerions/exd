@@ -3,7 +3,7 @@ defmodule Exd.Mixfile do
 
   def project do
     [app: :exd,
-     version: "0.0.1",
+     version: "0.1.0-dev",
      elixir: "~> 1.1-dev",
      deps: deps,
      compilers: [:erlang, :elixir, :app]]
@@ -35,9 +35,12 @@ defmodule Exd.Mixfile do
      {:lager, "~> 2.1.1", override: true},
      {:jsx, "~> 2.6.0", override: true},
      {:exscript, "~> 0.0.1"},
-     {:apix, github: "liveforeverx/apix"},
+     {:apix, "~> 0.1.0"},
      {:ecto, "~> 0.11.0"},
      {:ecto_migrate, "~> 0.1.0"},
-     {:poison, "~> 1.4.0"}]
+     {:poison, "~> 1.4.0"},
+
+     {:earmark, "~> 0.1", only: :dev},
+     {:ex_doc, "~> 0.7", only: :dev}]
   end
 end

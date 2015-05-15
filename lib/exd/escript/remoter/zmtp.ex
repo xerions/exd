@@ -9,7 +9,7 @@ defmodule Exd.Escript.Remoter.Zmtp do
   def applications() do
     Application.ensure_all_started(:hello)
     :hello_client.start({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', [], [decoder: :hello_msgpack], [])
-    :hello_client.call(__MODULE__, {"option", [], []})
+    :hello_client.call(__MODULE__, {"options", [], []})
   end
 
   def remote(_api, _method, _payload) do

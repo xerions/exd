@@ -12,6 +12,8 @@ defmodule Exd.Api.Crud do
       end
       defmodule Example.Api do
         @moduledoc "Example module documentation"
+        @name "Example"
+        @tech_name "example"
         use Exd.Model.Api
         crud
       end
@@ -22,11 +24,21 @@ defmodule Exd.Api.Crud do
 
       defmodule Example.Api do
         @moduledoc "Example module documentation"
+        @name "Example"
+        @tech_name "example"
         use Exd.Model.Api
         crud, only: [:insert, :get]
       end
   """
   import Ecto.Query
+
+  defmacrop repo(api) do
+    quote do: unquote(api).__exd_api__(:repo)
+  end
+  defmacrop model(api) do
+    quote do: unquote(api).__exd_api__(:model)
+  end
+
 
   @doc """
   Generic get function. There are different possiblities to get results. It possible to get results
@@ -37,6 +49,10 @@ defmodule Exd.Api.Crud do
       iex> Exd.Api.Crud.get(api, %{"id" => 1})
       iex> Exd.Api.Crud.get(api, %{"name" => "test"})
       iex> Exd.Api.Crud.get(api, %{"where" => "id < 5", "limit" => "5"})
+
+  ## Results
+
+  Results to a list of found objects, and a list of links, attached to assoicated objects.
 
   """
   def get(api, %{"where" => _} = params) do
@@ -49,25 +65,30 @@ defmodule Exd.Api.Crud do
     end
   end
 
-  defp get_one(api, %{"id" => id}) do
-    case api.__exd_api__(:repo).get(api.__exd_api__(:model), id) do
+  defp get_one(api, %{"id" => id} = params) do
+    case repo(api).get(model(api), id) do
       nil    -> nil
-      result -> result
+      result -> result |> load(api, params)
     end
   end
-  defp get_one(api, %{"name" => name}) do
-    case api.__exd_api__(:repo).get_by(api.__exd_api__(:model), name: name) do
+  defp get_one(api, %{"name" => name} = params) do
+    case repo(api).get_by(model(api), name: name) do
       nil    -> nil
-      result -> result
+      result -> result |> load(api, params)
     end
   end
 
+  defp load(data, api, params) do
+    repo(api).preload(data, Exd.Builder.Load.preload(params, model(api)))
+  end
+
   defp select(api, params) do
-    model = api.__exd_api__(:model)
+    model = model(api)
     field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
     from(m in model) |> Exd.Builder.Where.build(params, field_types)
                      |> Exd.Builder.QueryExpr.build(params)
-                     |> (api.__exd_api__(:repo)).all
+                     |> Exd.Builder.Load.build(params)
+                     |> (repo(api)).all
                      |> Enum.map(&export_data/1)
   end
 
@@ -79,12 +100,16 @@ defmodule Exd.Api.Crud do
     def changset(model, :create, params) do
       # Changeset on create
     end
+
+  ## Results
+
+  Results to an error of an link to object, which can be directly used in get.
   """
   def insert(api, params) when is_list(params), do: insert(api, :maps.from_list(params))
   def insert(api, params) do
     changeset = changeset(api.__exd_api__(:instance), api, :create, params)
     if changeset.valid? do
-      api.__exd_api__(:repo).insert(changeset) |> export_data(as: :write)
+      repo(api).insert(changeset) |> export_data(as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -98,6 +123,8 @@ defmodule Exd.Api.Crud do
     def changset(model, :update, params) do
       # Changeset on update
     end
+
+  Results to an error of an link to object, which can be directly used in get.
   """
   def put(api, params) when is_list(params), do: put(api, :maps.from_list(params))
   def put(api, params) do
@@ -109,15 +136,20 @@ defmodule Exd.Api.Crud do
   """
   def put(data, api, params) do
     changeset = changeset(data, api, :update, params)
+    unmodified = params["if_unmodified_since"]
+    changeset = if unmodified && Ecto.DateTime.to_iso8601(data.updated_at) != unmodified do
+      Ecto.Changeset.add_error(changeset, :modified, "was modified since #{unmodified}")
+    else changeset end
+
     if changeset.valid? do
-      api.__exd_api__(:repo).update(changeset) |> export_data(as: :write)
+      repo(api).update(changeset) |> export_data(as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
   end
 
   defp changeset(data, api, action, params) do
-    if function_exported?(api.__exd_api__(:model), :changeset, 3) do
+    if function_exported?(model(api), :changeset, 3) do
       api.model.changeset(data, action, params)
     else
       {required, optional} = if action == :create do
@@ -135,14 +167,14 @@ defmodule Exd.Api.Crud do
   def delete(api, params) do
     case get_one(api, params) do
       nil    -> nil
-      result -> api.__exd_api__(:repo).delete(result) |> export_data(as: :write)
+      result -> repo(api).delete(result) |> export_data(as: :write)
     end
   end
 
   defp export_data(%{id: id} = data, opts \\ [as: :get]) do
     case opts[:as] do
       :get ->
-        Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform_structs/1)
+        Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform/1)
       :write ->
         %{id: id}
     end
@@ -152,8 +184,9 @@ defmodule Exd.Api.Crud do
   defp filter_assocs({_key, _}), do: true
 
   # Brutal hack
-  defp transform_structs({key, %{__struct__: Ecto.DateTime} = struct}), do: {key, Ecto.DateTime.to_iso8601(struct)}
-  defp transform_structs({key, value}), do: {key, value}
+  defp transform({key, %{__struct__: Ecto.DateTime} = struct}), do: {key, Ecto.DateTime.to_iso8601(struct)}
+  defp transform({key, list}) when is_list(list), do: {key, Enum.map(list, &export_data/1)}
+  defp transform({key, value}), do: {key, value}
 
   @default_crud [:get, :insert, :put, :delete]
   defmacro crud(opts \\ []) do
@@ -162,7 +195,8 @@ defmodule Exd.Api.Crud do
       if :insert in actions do
         api "insert", :__insert__
         @doc """
-        Inserts #{@name} object.
+        Method: `insert`.
+        Inserts #{String.downcase(@name)} object.
 
         ## Parameters
 
@@ -174,7 +208,8 @@ defmodule Exd.Api.Crud do
       if :put in actions do
         api "put", :__put__
         @doc """
-        Update #{@name} object.
+        Method: `put`.
+        Update #{String.downcase(@name)} object.
 
         ## Parameters
 
@@ -186,7 +221,8 @@ defmodule Exd.Api.Crud do
       if :get in actions do
         api "get", :__get__
         @doc """
-        Get #{@name} object.
+        Method: `get`.
+        Get #{String.downcase(@name)} object.
 
         ## Parameters
 
@@ -198,7 +234,8 @@ defmodule Exd.Api.Crud do
       if :delete in actions do
         api "delete", :__delete__
         @doc """
-        Delete #{@name} object.
+        Method: `delete`.
+        Delete #{String.downcase(@name)} object.
 
         ## Parameters
 
@@ -215,15 +252,25 @@ defmodule Exd.Api.Crud do
   def description(model, exported, read_only, required, action) when action in [:put, :insert] do
     changable = exported -- read_only
     optional = if action == :insert do changable -- required else changable end
-    Enum.map(changable, fn(field) ->
+    description = Enum.map(changable, fn(field) ->
       field_string(model, field, field in optional)
     end) |> Enum.join("\n")
+    description <> update_attrs(action)
   end
 
   def description(model, exported, _read_only, _required, action) when action in [:get, :delete] do
     id_string   = if :id in exported do field_string(model, :id, false) <> "\n"     else "" end
     name_string = if :name in exported do field_string(model, :name, false) <> "\n" else "" end
-    query_string = ""
+    query_string = if action == :get do
+    """
+ * `where` - string, optional, identifies conditions on which it should be queried
+ * `limit` - integer, optional, limit results of query
+ * `load` - list of string, optional, identifies associations, which should be loaded
+ * `offset` - integer, optional, offsets the number results
+ * `order_by` - object, optional, set order of resulting query
+ * `aggregate` - string, optional, aggregate information, available: `count`
+    """
+    else "" end
     id_string <> name_string <> query_string
   end
 
@@ -231,5 +278,12 @@ defmodule Exd.Api.Crud do
     optional_string = if optional do ", optional" else "" end
     type = model.__schema__(:field, field)
     " * `#{field}` - #{type}#{optional_string} #{model.__attribute_option__(field)[:desc] || ""}"
+  end
+
+  defp update_attrs(:insert), do: ""
+  defp update_attrs(:put) do
+"""
+ * `if_unmodified_since` - string, optional, should be sent a value of `updated_at`, which can be readed on get.
+"""
   end
 end
