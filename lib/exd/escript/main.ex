@@ -18,7 +18,7 @@ usage: #{script} <command> <link> <data...> <opts...>
 commands:
   options - introspection of resources
   get     - get actual resource
-  insert  - create resource
+  post    - create resource
   put     - update existing resource
   delete  - delete a resource
 
@@ -36,7 +36,7 @@ example of usage:
   #{script} options #{link}
   #{script} get #{link} id:1
   #{script} get #{link} where:"id < 10" limit:5 offset:5
-  #{script} insert #{link} key:value
+  #{script} post #{link} key:value
   #{script} update #{link} id:1 key:value
   #{script} delete #{link} id:1
 

@@ -1,6 +1,6 @@
 defmodule Exd.Api.Crud do
   @moduledoc """
-  Generic implementation of get/insert/update/delete for APIs. Note, that `Exd.Api` automaticly
+  Generic implementation of get/post/update/delete for APIs. Note, that `Exd.Api` automaticly
   import `Exd.Api.Crud` in a scope, that you can define crud directly.
 
   ## Example of definition
@@ -27,7 +27,7 @@ defmodule Exd.Api.Crud do
         @name "Example"
         @tech_name "example"
         use Exd.Model.Api
-        crud, only: [:insert, :get]
+        crud, only: [:post, :get]
       end
   """
   import Ecto.Query
@@ -93,7 +93,7 @@ defmodule Exd.Api.Crud do
   end
 
   @doc """
-  Generic insert function, which uses default changset implementation or model defined `changeset/3`
+  Generic post function, which uses default changset implementation or model defined `changeset/3`
   function for validation, before inserting.
 
   ## Example of changset
@@ -104,9 +104,15 @@ defmodule Exd.Api.Crud do
   ## Results
 
   Results to an error of an link to object, which can be directly used in get.
+
+  ## Default validation
+
+  If there is no `changeset/3` exported, the default implementation doing simple `Ecto.Changeset.cast/4`
+  with requireing all attributes without (not required are: `id`, `udpated_at`, `created_at`), if the
+  `@required` is not overwritten in your API.
   """
-  def insert(api, params) when is_list(params), do: insert(api, :maps.from_list(params))
-  def insert(api, params) do
+  def post(api, params) when is_list(params), do: post(api, :maps.from_list(params))
+  def post(api, params) do
     changeset = changeset(api.__exd_api__(:instance), api, :create, params)
     if changeset.valid? do
       repo(api).insert(changeset) |> export_data(as: :write)
@@ -125,6 +131,12 @@ defmodule Exd.Api.Crud do
     end
 
   Results to an error of an link to object, which can be directly used in get.
+
+  ## Default validation
+
+  If there is no `changeset/3` exported, the default implementation doing simple `Ecto.Changeset.cast/4`
+  with requireing all attributes without (not required are: `id`, `udpated_at`, `created_at`), if the
+  `@required` is not overwritten in your API.
   """
   def put(api, params) when is_list(params), do: put(api, :maps.from_list(params))
   def put(api, params) do
@@ -188,21 +200,21 @@ defmodule Exd.Api.Crud do
   defp transform({key, list}) when is_list(list), do: {key, Enum.map(list, &export_data/1)}
   defp transform({key, value}), do: {key, value}
 
-  @default_crud [:get, :insert, :put, :delete]
+  @default_crud [:get, :post, :put, :delete]
   defmacro crud(opts \\ []) do
     actions = opts[:only] || @default_crud
     quote bind_quoted: [actions: actions] do
-      if :insert in actions do
-        api "insert", :__insert__
+      if :post in actions do
+        api "post", :__post__
         @doc """
-        Method: `insert`.
+        Method: `post`.
         Inserts #{String.downcase(@name)} object.
 
         ## Parameters
 
-        #{ Exd.Api.Crud.description(@model, @exported, @read_only, @required, :insert) }
+        #{ Exd.Api.Crud.description(@model, @exported, @read_only, @required, :post) }
         """
-        def __insert__(args), do: Exd.Api.Crud.insert(__MODULE__, args)
+        def __post__(args), do: Exd.Api.Crud.post(__MODULE__, args)
       end
 
       if :put in actions do
@@ -249,9 +261,9 @@ defmodule Exd.Api.Crud do
   @doc """
   Generates description of method, based on model, exported, read_only and required fields and action.
   """
-  def description(model, exported, read_only, required, action) when action in [:put, :insert] do
+  def description(model, exported, read_only, required, action) when action in [:put, :post] do
     changable = exported -- read_only
-    optional = if action == :insert do changable -- required else changable end
+    optional = if action == :post do changable -- required else changable end
     description = Enum.map(changable, fn(field) ->
       field_string(model, field, field in optional)
     end) |> Enum.join("\n")
@@ -280,7 +292,7 @@ defmodule Exd.Api.Crud do
     " * `#{field}` - #{type}#{optional_string} #{model.__attribute_option__(field)[:desc] || ""}"
   end
 
-  defp update_attrs(:insert), do: ""
+  defp update_attrs(:post), do: ""
   defp update_attrs(:put) do
 """
  * `if_unmodified_since` - string, optional, should be sent a value of `updated_at`, which can be readed on get.
