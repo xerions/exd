@@ -28,12 +28,12 @@ defmodule Exd.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [{:postgrex, ">= 0.0.0", optional: true},
+     {:jsx, github: "liveforeverx/jsx", branch: "mix_compile", override: true},
      {:mariaex, ">= 0.1.0", optional: true},
      {:ecto_it, "~> 0.1.0", optional: true},
      {:hello, github: "travelping/hello", branch: "hello_v3", optional: true},
 
      {:lager, "~> 2.1.1", override: true},
-     {:jsx, "~> 2.6.0", override: true},
      {:exscript, "~> 0.0.1"},
      {:apix, "~> 0.1.0"},
      {:ecto, "~> 0.11.0"},
