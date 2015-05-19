@@ -8,3 +8,6 @@ erl_crash.dump
 .compile.elixir
 mix.lock
 /lib/exd/test.ex
+/doc
+/log
+/exd
