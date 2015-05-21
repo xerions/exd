@@ -27,7 +27,9 @@ defmodule Exd.Api do
   from model use case.
 
   * `@exported`  - Defines attributes, which are exported with Api
+  * `@hidden`    - Defines attributes, which are hidden on Api
   * `@required`  - Defines attributes, which are required on creation
+  * `@optional`  - Defines attributes, which are optional
   * `@read_only` - Defines attributes, which can be readed, but can't be modified
   * `@model`     - Defined on use model
   * `@repo`      - Defined on use repo
@@ -120,9 +122,9 @@ defmodule Exd.Api do
       require unquote(model)
       @model unquote(model)
       @repo  unquote(repo)
-      @exported @model.__schema__(:fields)
+      @exported @model.__schema__(:fields) -- (@hidden || [])
       @read_only [:id, :inserted_at, :updated_at]
-      @required @exported -- @read_only
+      @required (@exported -- @read_only) -- (@optional || [])
 
       api "options", :__options__
       @doc """
