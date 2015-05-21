@@ -101,12 +101,15 @@ defmodule Exd.Model do
   end
 
   def gen_model(module, body, orig_body, adds \\ []) do
+    # TODO: ensure timestamps, name defined
     _schema = {:schema, _meta, [_name, [do: block]]} = List.keyfind(body, :schema, 0)
     all_fields = unblock(block)
     attribute_options = gen_attribute_options(all_fields)
     quote do
       defmodule unquote(module) do
         use Ecto.Model
+        use Ecto.Migration.Auto.Index
+        index(:name, unique: true)
         def name,  do: __schema__(:source)
         defoverridable [name: 0]
         unquote(body)

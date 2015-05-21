@@ -38,7 +38,11 @@ defmodule Exd.Api.Crud do
   defmacrop model(api) do
     quote do: unquote(api).__exd_api__(:model)
   end
-
+  defmacrop save(expression) do
+    quote do
+      try do unquote(expression) rescue error -> error end
+    end
+  end
 
   @doc """
   Generic get function. There are different possiblities to get results. It possible to get results
@@ -117,7 +121,7 @@ defmodule Exd.Api.Crud do
   def post(api, params) do
     changeset = changeset(api.__exd_api__(:instance), api, :create, params)
     if changeset.valid? do
-      repo(api).insert(changeset) |> export_data(as: :write)
+      save(repo(api).insert(changeset)) |> format_data(api, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -156,7 +160,7 @@ defmodule Exd.Api.Crud do
     else changeset end
 
     if changeset.valid? do
-      repo(api).update(changeset) |> export_data(as: :write)
+      save(repo(api).update(changeset)) |> format_data(api, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -184,6 +188,18 @@ defmodule Exd.Api.Crud do
       result -> repo(api).delete(result) |> export_data(as: :write)
     end
   end
+
+  # TODO: remove hack
+  defp format_data(%{mariadb: %{code: _, message: "Duplicate entry" <> message}}, _api, opts) do
+    # _value = String.split(error) |> hd() |> String.strip(?')
+    %{errors: %{name: "exists"}}
+  end
+  defp format_data(%{mariadb: %{code: _, message: "Cannot add or update a child row: a foreign key constraint fails" <> message}}, api, opts) do
+    {_, ["KEY", relation | _]} = String.split(message) |> Enum.split_while(&(&1 != "KEY"))
+    relation = String.slice(relation, 2, byte_size(relation) - 4) |> String.to_atom
+    %{errors: Map.put(%{}, relation, "not found")}
+  end
+  defp format_data(data, _api, opts), do: export_data(data, opts)
 
   defp export_data(%{id: id} = data, opts \\ [as: :get]) do
     case opts[:as] do
