@@ -55,13 +55,15 @@ defmodule Exd.Api.Crud do
   Results to a list of found objects, and a list of links, attached to assoicated objects.
 
   """
-  def get(api, %{"where" => _} = params) do
-    select(api, params)
-  end
   def get(api, params) do
-    case get_one(api, params) do
-      result when is_map(result) -> result |> export_data
-      nil -> nil
+    keys = Map.keys(params)
+    if ("id" in keys) or ("name" in keys) do
+      case get_one(api, params) do
+        result when is_map(result) -> result |> export_data
+        nil -> nil
+      end
+    else
+      select(api, params)
     end
   end
 
