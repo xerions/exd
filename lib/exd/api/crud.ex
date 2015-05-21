@@ -216,6 +216,7 @@ defmodule Exd.Api.Crud do
   # Brutal hack
   defp transform({key, %{__struct__: Ecto.DateTime} = struct}), do: {key, Ecto.DateTime.to_iso8601(struct)}
   defp transform({key, list}) when is_list(list), do: {key, Enum.map(list, &export_data/1)}
+  defp transform({key, %{__meta__: _} = data}), do: {key, export_data(data)}
   defp transform({key, value}), do: {key, value}
 
   @default_crud [:get, :post, :put, :delete]
