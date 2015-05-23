@@ -43,6 +43,13 @@ defmodule Exd.Api.Crud do
       try do unquote(expression) rescue error -> error end
     end
   end
+  defmacrop unless_error(data, api, what_to_do) do
+    quote do
+      unless error = check_error(unquote(data), unquote(api)) do
+        unquote(what_to_do)
+      else error end
+    end
+  end
 
   @doc """
   Generic get function. There are different possiblities to get results. It possible to get results
@@ -62,30 +69,28 @@ defmodule Exd.Api.Crud do
   def get(api, params) do
     keys = Map.keys(params)
     if ("id" in keys) or ("name" in keys) do
-      case get_one(api, params) do
-        result when is_map(result) -> result |> export_data
-        nil -> nil
-      end
+      get_one(api, params)
     else
       select(api, params)
-    end
+    end |> format_data(api, as: :get)
   end
 
   defp get_one(api, %{"id" => id} = params) do
-    case repo(api).get(model(api), id) do
-      nil    -> nil
-      result -> result |> load(api, params)
-    end
+    repo(api).get(model(api), id) |> save |> load(api, params)
   end
   defp get_one(api, %{"name" => name} = params) do
-    case repo(api).get_by(model(api), name: name) do
-      nil    -> nil
-      result -> result |> load(api, params)
-    end
+    repo(api).get_by(model(api), name: name) |> save |> load(api, params)
   end
 
   defp load(data, api, params) do
-    repo(api).preload(data, Exd.Builder.Load.preload(params, model(api)))
+    unless_error(data, api, load_apply(data, api, params))
+  end
+
+  defp load_apply(data, api, params) do
+    if data do
+      preload = Exd.Builder.Load.preload(params, model(api))
+      repo(api).preload(data, preload) |> save
+    end
   end
 
   defp select(api, params) do
@@ -95,7 +100,7 @@ defmodule Exd.Api.Crud do
                      |> Exd.Builder.QueryExpr.build(params)
                      |> Exd.Builder.Load.build(params)
                      |> (repo(api)).all
-                     |> Enum.map(&export_data/1)
+                     |> save
   end
 
   @doc """
@@ -146,7 +151,9 @@ defmodule Exd.Api.Crud do
   """
   def put(api, params) when is_list(params), do: put(api, :maps.from_list(params))
   def put(api, params) do
-    if data = get_one(api, params), do: put(data, api, params)
+    if data = get_one(api, params) do
+      unless_error(data, api, put(data, api, params))
+    end
   end
 
   @doc """
@@ -160,7 +167,8 @@ defmodule Exd.Api.Crud do
     else changeset end
 
     if changeset.valid? do
-      save(repo(api).update(changeset)) |> format_data(api, as: :write)
+      result = save(repo(api).update(changeset))
+      unless_error(result, api, export_data(result, as: :write))
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -185,23 +193,32 @@ defmodule Exd.Api.Crud do
   def delete(api, params) do
     case get_one(api, params) do
       nil    -> nil
-      result -> repo(api).delete(result) |> export_data(as: :write)
+      result -> unless_error(result, api, save(repo(api).delete(result)) |> format_data(api, as: :write))
     end
   end
 
   # TODO: remove hack
-  defp format_data(%{mariadb: %{code: _, message: "Duplicate entry" <> message}}, _api, opts) do
+  defp check_error(%{mariadb: %{code: _, message: "Duplicate entry" <> _message}}, _api) do
     # _value = String.split(error) |> hd() |> String.strip(?')
     %{errors: %{name: "exists"}}
   end
-  defp format_data(%{mariadb: %{code: _, message: "Cannot add or update a child row: a foreign key constraint fails" <> message}}, api, opts) do
+  defp check_error(%{mariadb: %{code: _, message: "Cannot add or update a child row: a foreign key constraint fails" <> message}}, _api) do
     {_, ["KEY", relation | _]} = String.split(message) |> Enum.split_while(&(&1 != "KEY"))
     relation = String.slice(relation, 2, byte_size(relation) - 4) |> String.to_atom
     %{errors: Map.put(%{}, relation, "not found")}
   end
-  defp format_data(data, _api, opts), do: export_data(data, opts)
+  defp check_error(%{message: "tcp connect: econnrefused"}, _api) do
+    %{errors: %{database: "not available"}}
+  end
+  defp check_error(_, _), do: nil
 
-  defp export_data(%{id: id} = data, opts \\ [as: :get]) do
+  defp format_data(data, api, opts) do
+    unless_error(data, api, export_data(data, opts))
+  end
+
+  defp export_data(data, opts \\ [as: :get])
+  defp export_data(data, opts) when is_list(data), do: Enum.map(data, &export_data(&1, opts))
+  defp export_data(%{id: id} = data, opts) do
     case opts[:as] do
       :get ->
         Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform/1)
@@ -209,11 +226,12 @@ defmodule Exd.Api.Crud do
         %{id: id}
     end
   end
+  defp export_data(nil, _opts), do: nil
 
   defp filter_assocs({_key, %Ecto.Association.NotLoaded{}}), do: false
   defp filter_assocs({_key, _}), do: true
 
-  # Brutal hack
+  # TODO: remove hack
   defp transform({key, %{__struct__: Ecto.DateTime} = struct}), do: {key, Ecto.DateTime.to_iso8601(struct)}
   defp transform({key, list}) when is_list(list), do: {key, Enum.map(list, &export_data/1)}
   defp transform({key, %{__meta__: _} = data}), do: {key, export_data(data)}
