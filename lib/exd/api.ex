@@ -122,9 +122,9 @@ defmodule Exd.Api do
       require unquote(model)
       @model unquote(model)
       @repo  unquote(repo)
-      @exported @model.__schema__(:fields) -- (@hidden || [])
+      @exported @model.__schema__(:fields) -- (Module.get_attribute(__MODULE__, :hidden) || [])
       @read_only [:id, :inserted_at, :updated_at]
-      @required (@exported -- @read_only) -- (@optional || [])
+      @required (@exported -- @read_only) -- (Module.get_attribute(__MODULE__, :optional) || [])
 
       api "options", :__options__
       @doc """
