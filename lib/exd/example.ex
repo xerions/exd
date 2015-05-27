@@ -3,6 +3,7 @@ if Mix.env == :test do
   model Weather do
     schema "weather" do
       field :city
+      field :name, :string
       field :temp_lo, :integer
       field :temp_hi, :integer
       field :prcp,    :float, default: 0.0
