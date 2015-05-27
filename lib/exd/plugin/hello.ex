@@ -82,7 +82,7 @@ if Code.ensure_loaded?(:hello) do
     @doc """
     Implements route, see module documentation.
     """
-    def route(context(session_id: id), request(method: method, args: _args = %{"resource" => resource}), uri) do
+    def route(context(session_id: id), request(method: _method, args: _args = %{"resource" => resource}), uri) do
       case :hello_binding.lookup(uri, resource) do
         {:error, :not_found} -> {:error, :method_not_found}
         {:ok, _, name} -> {:ok, name, id}

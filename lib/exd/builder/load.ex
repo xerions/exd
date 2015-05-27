@@ -9,5 +9,5 @@ defmodule Exd.Builder.Load do
     |> Stream.filter(&(&1 in list))
     |> Enum.map(&String.to_atom/1)
   end
-  def preload(_, model), do: []
+  def preload(_, _model), do: []
 end

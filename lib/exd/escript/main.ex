@@ -36,6 +36,7 @@ example of usage:
   #{script} options #{link}
   #{script} get #{link} id:1
   #{script} get #{link} where:"id < 10" limit:5 offset:5
+  #{script} get #{link} where:"id < 10" order_by:"id:desc" limit:5 offset:5
   #{script} post #{link} key:value
   #{script} update #{link} id:1 key:value
   #{script} delete #{link} id:1
@@ -50,6 +51,11 @@ available opts:
   --input native|json - payload input format, defaults to native
   --remoter dist|zmtp - transport to communicate remote services
 """
+  end
+
+  def main([command],opts, script, remoter, local_apps) do
+    IO.puts "Error: 'exd #{command}' command must have options"
+    main([], opts, script, remoter, local_apps)
   end
 
   def main([command, link | payload], opts, script, remoter, local_apps) do
@@ -114,8 +120,8 @@ available apis:
   #end
 
   defp payload(payload, "native") do
-    splited = Enum.map(payload, &String.split(&1, ":"))
-    Enum.all?(splited, &(length(&1) == 2)) || fail("payload should be in form of <key>:<value>")
+    splited = Enum.map(payload, &String.split(&1, ":", parts: 2))
+    Enum.all?(splited, &((length(&1) == 2) or (length(&1) == 3))) || fail("payload should be in form of <key>:<value> or <key>:<value>:<meta>")
     splited |> Enum.map(&List.to_tuple/1) |> Enum.into(%{})
   end
 

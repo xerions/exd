@@ -97,6 +97,7 @@ defmodule Exd.Api.Crud do
     model = model(api)
     field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
     from(m in model) |> Exd.Builder.Where.build(params, field_types)
+                     |> Exd.Builder.OrderBy.build(params)
                      |> Exd.Builder.QueryExpr.build(params)
                      |> Exd.Builder.Load.build(params)
                      |> (repo(api)).all
