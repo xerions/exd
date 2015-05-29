@@ -93,11 +93,26 @@ defmodule Exd.Api.Crud do
     end
   end
 
+  defp param_to_map(params, key) do
+    fields = Map.get(params, key) |> String.split(",")
+    {fields, Map.put(params, key, fields)}
+  end
+
+  @join_directions ["full_join", "right_join", "left_join", "join"]
   defp select(api, params) do
     model = model(api)
     field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
-    from(m in model) |> Exd.Builder.Where.build(params, field_types)
+
+    {join_models, params} = case Enum.filter_map(Map.keys(params), fn(parameter_key) -> parameter_key in @join_directions end, &(&1)) do
+                              [] ->
+                                {[], params}
+                              [key] ->
+                                param_to_map(params, key)
+                            end
+
+    from(m in model) |> Exd.Builder.Where.build(params, join_models, field_types)
                      |> Exd.Builder.OrderBy.build(params)
+                     |> Exd.Builder.Join.build(params)
                      |> Exd.Builder.QueryExpr.build(params)
                      |> Exd.Builder.Load.build(params)
                      |> (repo(api)).all
