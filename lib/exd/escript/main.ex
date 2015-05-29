@@ -37,6 +37,7 @@ example of usage:
   #{script} get #{link} id:1
   #{script} get #{link} where:"id < 10" limit:5 offset:5
   #{script} get #{link} where:"id < 10" order_by:"id:desc" limit:5 offset:5
+  #{script} get #{link} join:"[my_model, my_model2]", where:"my_model.id == 10"
   #{script} post #{link} key:value
   #{script} update #{link} id:1 key:value
   #{script} delete #{link} id:1
