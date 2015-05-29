@@ -1,29 +1,38 @@
 defmodule Exd.Builder.Join do
 
   @default_join :inner
+  @join_direction  ["left_join", "right_join", "full_join", "join"]
+  @mapping  [left: "left_join", right: "right_join", full_join: "full_join", inner: "join"]
 
-  def build(query, %{"left_join" => join_arr}) do
-    build(query, :left, join_arr)
+  def models(params) do
+    keys = Map.keys(params)
+    Enum.filter_map(keys, fn(k) ->
+      k in @join_direction
+    end, &(&1)) |> models_list(params)
   end
 
-  def build(query, %{"right_join" => join_arr}) do
-    build(query, :right, join_arr)
+  defp models_list([], _params) do
+    []
   end
 
-  def build(query, %{"full_join" => join_arr}) do
-    build(query, :full, join_arr)
+  defp models_list([key], params) do
+    Map.get(params, key)
   end
 
-  def build(query, %{"join" => join_arr}) do
-    build(query, :inner, join_arr)
+  for {inner, extern} <- @mapping do
+    def build(query, %{unquote(extern) => join_arr}), do: build(query, unquote(inner), join_arr)
+  end
+
+  def build(query, _) do
+    query
   end
 
   def build(query, direction, join_arr) do
     join_arr = Enum.map(join_arr, fn(join_model) ->
-      %{'__struct__': :'Elixir.Ecto.Query.JoinExpr',
+      %Ecto.Query.JoinExpr{
         assoc: nil,
         ix: nil,
-        on: %{'__struct__': :'Elixir.Ecto.Query.QueryExpr',
+        on: %Ecto.Query.QueryExpr{
               expr: :true,
               params: []
              },
@@ -32,10 +41,6 @@ defmodule Exd.Builder.Join do
        }
     end)
     Map.put(query, :joins, join_arr)
-  end
-
-  def build(query, _) do
-    query
   end
 
 end

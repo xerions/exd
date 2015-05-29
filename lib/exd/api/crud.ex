@@ -73,7 +73,7 @@ defmodule Exd.Api.Crud do
       get_one(api, params)
     else
       select(api, params)
-    end |> format_data(api, as: :get)
+    end |> format_data(api, params, as: :get)
   end
 
   defp get_one(api, %{"id" => id} = params) do
@@ -94,26 +94,19 @@ defmodule Exd.Api.Crud do
     end
   end
 
-  defp param_to_map(params, key) do
-    fields = Map.get(params, key) |> String.split(",")
-    {fields, Map.put(params, key, fields)}
-  end
+  @lists ["full_join", "right_join", "left_join", "join", "load", "select"]
+  defp to_list({key, value}) when is_binary(value) and key in @lists, do: {key, String.split(value, ",")}
+  defp to_list({key, value}), do: {key, value}
 
-  @join_directions ["full_join", "right_join", "left_join", "join"]
   defp select(api, params) do
     model = model(api)
     field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
-
-    {join_models, params} = case Enum.filter_map(Map.keys(params), fn(parameter_key) -> parameter_key in @join_directions end, &(&1)) do
-                              [] ->
-                                {[], params}
-                              [key] ->
-                                param_to_map(params, key)
-                            end
-
+    params = Stream.map(params, &to_list/1) |> Enum.into(%{})
+    join_models = Exd.Builder.Join.models(params)
     from(m in model) |> Exd.Builder.Where.build(params, join_models, field_types)
                      |> Exd.Builder.OrderBy.build(params)
                      |> Exd.Builder.Join.build(params)
+                     |> Exd.Builder.Select.build(params, join_models)
                      |> Exd.Builder.QueryExpr.build(params)
                      |> Exd.Builder.Load.build(params)
                      |> (repo(api)).all
@@ -143,7 +136,7 @@ defmodule Exd.Api.Crud do
   def post(api, params) do
     changeset = changeset(api.__exd_api__(:instance), api, :create, params)
     if changeset.valid? do
-      save(repo(api).insert(changeset)) |> notify(api, :after_post) |> format_data(api, as: :write)
+      save(repo(api).insert(changeset)) |> notify(api, :after_post) |> format_data(api, params, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -184,7 +177,7 @@ defmodule Exd.Api.Crud do
     else changeset end
 
     if changeset.valid? do
-      save(repo(api).update(changeset)) |> notify(api, :after_put) |> format_data(api, as: :write)
+      save(repo(api).update(changeset)) |> notify(api, :after_put) |> format_data(api, params, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -209,7 +202,7 @@ defmodule Exd.Api.Crud do
   def delete(api, params) do
     case get_one(api, params) do
       nil    -> nil
-      result -> unless_error(result, api, save(repo(api).delete(result)) |> notify(api, :after_delete) |> format_data(api, as: :write))
+      result -> unless_error(result, api, save(repo(api).delete(result)) |> notify(api, :after_delete) |> format_data(api, params, as: :write))
     end
   end
 
@@ -233,8 +226,17 @@ defmodule Exd.Api.Crud do
     unless_error(data, api, Callbacks.__apply__(api, callback, data))
   end
 
-  defp format_data(data, api, opts) do
-    unless_error(data, api, export_data(data, opts))
+  defp format_select_response([]), do: []
+  defp format_select_response(data) do
+    Enum.map(data, fn(map) -> Map.to_list(map) end)
+  end
+
+  defp format_data(data, api, params, opts) do
+    # 'select' response is not __struct__, so we need to  format in other place
+    case params["select"] do
+      nil -> unless_error(data, api, export_data(data, opts))
+      _ -> unless_error(data, api, format_select_response(data))
+    end
   end
 
   defp export_data(data, opts \\ [as: :get])
@@ -247,6 +249,7 @@ defmodule Exd.Api.Crud do
         %{id: id}
     end
   end
+
   defp export_data(nil, _opts), do: nil
 
   defp filter_assocs({_key, %Ecto.Association.NotLoaded{}}), do: false
