@@ -104,13 +104,13 @@ defmodule Exd.Model do
     # TODO: ensure timestamps, name defined
     _schema = {:schema, _meta, [_name, [do: block]]} = List.keyfind(body, :schema, 0)
     all_fields = unblock(block)
-    field_attributes = Enum.flat_map(all_fields, &extract_attributes(&1))
-    attribute_options = gen_attribute_options(field_attributes)
+    attribute_options = gen_attribute_options(all_fields)
+    name_found = Enum.any?(all_fields, &match?({:field, _, [:name | _]}, &1))
     quote do
       defmodule unquote(module) do
         use Ecto.Model
         use Ecto.Migration.Auto.Index
-        if unquote(field_attributes[:name]), do: index(:name, unique: true)
+        if unquote( name_found ), do: index(:name, unique: true)
         def name,  do: __schema__(:source)
         defoverridable [name: 0]
         unquote(body)
@@ -120,7 +120,8 @@ defmodule Exd.Model do
     end
   end
 
-  defp gen_attribute_options(field_attributes) do
+  defp gen_attribute_options(all_fields) do
+    field_attributes = Enum.flat_map(all_fields, &extract_attributes(&1))
     attribute_options = for {name, attributes} <- field_attributes do
       quote do
         def __attribute_option__(unquote(name)), do: unquote(attributes)
