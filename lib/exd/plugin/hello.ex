@@ -15,9 +15,13 @@ if Code.ensure_loaded?(:hello) do
     @doc """
     Implementation of `handle_request/4` for a service.
     """
-    def handle_request(api, method, args) do
-      method = String.split(method, ".") |> Enum.reverse |> hd
-      {:ok, api.__apix__(:apply, method, args)}
+    def handle_request(api, method, args, state) do
+      result = if method in api.__apix__(:methods) do
+        {:ok, api.__apix__(:apply, method, args)}
+      else
+        {:error, {:method_not_found, method, :null}}
+      end
+      {:stop, :normal, result, state}
     end
 
     @doc """
@@ -47,7 +51,7 @@ if Code.ensure_loaded?(:hello) do
         def init(identifier, _), do: {:ok, nil}
         @doc false
         def handle_request(_context, method, args, state) do
-          {:reply, Exd.Plugin.Hello.handle_request(__MODULE__, method, args), state}
+          Exd.Plugin.Hello.handle_request(__MODULE__, method, args, state)
         end
 
         @doc false
@@ -82,8 +86,8 @@ if Code.ensure_loaded?(:hello) do
     @doc """
     Implements route, see module documentation.
     """
-    def route(context(session_id: id), request(method: _method, args: _args = %{"resource" => resource}), uri) do
-      case :hello_binding.lookup(uri, resource) do
+    def route(context(session_id: id), request(method: _method, args: args), uri) do
+      case :hello_binding.lookup(uri, args["resource"]) do
         {:error, :not_found} -> {:error, :method_not_found}
         {:ok, _, name} -> {:ok, name, id}
       end

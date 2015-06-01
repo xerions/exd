@@ -1,4 +1,4 @@
-if Mix.env == :test do
+if Mix.env in [:dev, :test] do
   import Exd.Model
   model Weather do
     schema "weather" do
