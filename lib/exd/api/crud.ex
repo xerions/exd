@@ -211,6 +211,7 @@ defmodule Exd.Api.Crud do
   defp check_error(%{message: "tcp connect: econnrefused"}, _api) do
     %{errors: %{database: "not available"}}
   end
+  defp check_error(%{errors: _} = error, _), do: error
   defp check_error(_, _), do: nil
 
   defp notify(data, api, callback) do
