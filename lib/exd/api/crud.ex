@@ -31,6 +31,7 @@ defmodule Exd.Api.Crud do
       end
   """
   import Ecto.Query
+  alias Exd.Api.Callbacks
 
   defmacrop repo(api) do
     quote do: unquote(api).__exd_api__(:repo)
@@ -127,7 +128,7 @@ defmodule Exd.Api.Crud do
   def post(api, params) do
     changeset = changeset(api.__exd_api__(:instance), api, :create, params)
     if changeset.valid? do
-      save(repo(api).insert(changeset)) |> format_data(api, as: :write)
+      save(repo(api).insert(changeset)) |> notify(api, :after_post) |> format_data(api, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -168,8 +169,7 @@ defmodule Exd.Api.Crud do
     else changeset end
 
     if changeset.valid? do
-      result = save(repo(api).update(changeset))
-      unless_error(result, api, export_data(result, as: :write))
+      save(repo(api).update(changeset)) |> notify(api, :after_put) |> format_data(api, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -194,7 +194,7 @@ defmodule Exd.Api.Crud do
   def delete(api, params) do
     case get_one(api, params) do
       nil    -> nil
-      result -> unless_error(result, api, save(repo(api).delete(result)) |> format_data(api, as: :write))
+      result -> unless_error(result, api, save(repo(api).delete(result)) |> notify(api, :after_delete) |> format_data(api, as: :write))
     end
   end
 
@@ -213,6 +213,10 @@ defmodule Exd.Api.Crud do
   end
   defp check_error(_, _), do: nil
 
+  defp notify(data, api, callback) do
+    unless_error(data, api, Callbacks.__apply__(api, callback, data))
+  end
+
   defp format_data(data, api, opts) do
     unless_error(data, api, export_data(data, opts))
   end
@@ -222,7 +226,7 @@ defmodule Exd.Api.Crud do
   defp export_data(%{id: id} = data, opts) do
     case opts[:as] do
       :get ->
-        Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform/1)
+        Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform/1) |> Enum.into(%{})
       :write ->
         %{id: id}
     end
