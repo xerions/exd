@@ -31,7 +31,7 @@ defmodule Exd.Escript.Remoter.Dist do
 
   @behaviour Exd.Escript.Remoter
 
-  def applications() do
+  def applications(_) do
     init
     local_nodes |> Enum.map(fn(node) -> rpc(node, Exd.Escript.Remoter.Dist.apis) end)
                 |> List.flatten

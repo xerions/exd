@@ -36,8 +36,8 @@ defmodule Exd.Mixfile do
      {:lager, "~> 2.1.1", override: true},
      {:exscript, "~> 0.0.1"},
      {:apix, "~> 0.1.0"},
-     {:ecto, "~> 0.11.0"},
-     {:ecto_migrate, "~> 0.2.0"},
+     {:ecto, "~> 0.12.0-rc"},
+     {:ecto_migrate, "~> 0.3.0"},
      {:poison, "~> 1.4.0"},
 
      {:earmark, "~> 0.1", only: :dev},

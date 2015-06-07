@@ -1,5 +1,5 @@
 defmodule Exd.Model do
-  @doc """
+  @moduledoc """
   Defines extra layer on ecto models for allowing somewhat configuration-based runtime model extending.
   It allows to define `model`s and `model_add`s.
 

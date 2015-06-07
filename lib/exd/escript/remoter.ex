@@ -5,7 +5,7 @@ defmodule Exd.Escript.Remoter do
   use Behaviour
 
   @doc "Method of getting remote applications"
-  defcallback applications() :: term()
+  defcallback applications(script :: term()) :: term()
 
   @doc "Call remote method on payload"
   defcallback remote(api :: term(), method :: binary(), payload :: term()) :: term()

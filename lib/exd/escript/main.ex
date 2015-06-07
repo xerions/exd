@@ -3,7 +3,8 @@ defmodule Exd.Escript.Main do
   def main(args) do
     {opts, args, _} = OptionParser.parse(args, @parse_opts)
     remoter = Exd.Escript.Remoter.get( opts[:remoter] || "dist" ) || fail("remoter: #{opts[:remoter]} not supported")
-    local_apps = remoter.applications()
+    script = script()
+    local_apps = remoter.applications(script)
     main(args, opts, script, remoter, local_apps)
   end
 

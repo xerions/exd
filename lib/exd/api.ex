@@ -110,6 +110,7 @@ defmodule Exd.Api do
     end)
   end
 
+  @doc false
   defmacro __using__(opts) do
     model = opts[:model] || raise ArgumentError, message: "Api should have `model` in options"
     repo = opts[:repo] || raise ArgumentError, message: "Api should have `repo` in options"
@@ -136,6 +137,7 @@ defmodule Exd.Api do
     end
   end
 
+  @doc false
   defmacro __before_compile__(env) do
     module = env.module
     [required, exported, read_only] = for attr <- [:required, :exported, :read_only], do: Module.get_attribute(module, attr)

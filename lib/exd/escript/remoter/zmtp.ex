@@ -7,12 +7,20 @@ defmodule Exd.Escript.Remoter.Zmtp do
   @behaviour Exd.Escript.Remoter
 
   def applications() do
-    Application.ensure_all_started(:hello)
-    :hello_client.start({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', [], [decoder: :hello_msgpack], [])
+    init_zmtp
+    :hello_client.start_link({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', {[], [], []})
     :hello_client.call(__MODULE__, {"options", [], []})
   end
 
   def remote(_api, _method, _payload) do
     :test
   end
+
+  def init_zmtp() do
+    Application.put_env :sasl, :sasl_error_logger, :false, persistent: true
+    Application.put_env :lager, :handlers, [], persistent: true
+    Application.ensure_all_started(:ezmq)
+    Application.get_env(:exd, :test) |> IO.inspect
+  end
+
 end

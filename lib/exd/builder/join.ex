@@ -30,12 +30,7 @@ defmodule Exd.Builder.Join do
   def build(query, direction, join_arr) do
     join_arr = Enum.map(join_arr, fn(join_model) ->
       %Ecto.Query.JoinExpr{
-        assoc: nil,
-        ix: nil,
-        on: %Ecto.Query.QueryExpr{
-              expr: :true,
-              params: []
-             },
+        on: %Ecto.Query.QueryExpr{expr: :true, params: []},
         qual: direction,
         source: {join_model, nil}
        }
