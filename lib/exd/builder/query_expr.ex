@@ -15,6 +15,7 @@ defmodule Exd.Builder.QueryExpr do
     end
   end
 
+  def cast(value, :integer) when is_integer(value), do: value
   def cast(value, :integer), do: String.to_integer(value)
   def cast(value, :string), do: value
 end
