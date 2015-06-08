@@ -61,6 +61,7 @@ defmodule Exd.Api.Crud do
       iex> Exd.Api.Crud.get(api, %{"id" => 1})
       iex> Exd.Api.Crud.get(api, %{"name" => "test"})
       iex> Exd.Api.Crud.get(api, %{"where" => "id < 5", "limit" => "5"})
+      iex> Exd.Api.Crud.get(api, %{"join" => ["x"], "order_by" => "x.name:asc"})
 
   ## Results
 
@@ -104,7 +105,7 @@ defmodule Exd.Api.Crud do
     params = Stream.map(params, &to_list/1) |> Enum.into(%{})
     join_models = Exd.Builder.Join.models(api, params)
     from(m in model) |> Exd.Builder.Where.build(params, join_models, field_types)
-                     |> Exd.Builder.OrderBy.build(params)
+                     |> Exd.Builder.OrderBy.build(params, join_models)
                      |> Exd.Builder.Join.build(params, join_models)
                      |> Exd.Builder.Select.build(params, join_models)
                      |> Exd.Builder.QueryExpr.build(params)

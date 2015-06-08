@@ -5,6 +5,17 @@ defmodule Exd.Util do
     model.__schema__(:source) |> Kernel.to_atom
   end
 
+  def field(value, join_models) do
+    {index, field} = case String.split(value, ".") do
+      [field] ->
+        {0, field}
+      [model, field] ->
+        index = get_index(join_models, model |> String.to_atom)
+        {index, field}
+    end
+    {index, String.to_atom(field)}
+  end
+
   def get_index(join_models, model) do
     index = Enum.find_index(join_models, &(model == &1))
     case index do
