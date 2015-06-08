@@ -31,7 +31,6 @@ defmodule Exd.Builder.Where do
         internal_ast = build_ast(tmp_ast, join_models, fields_with_types, [])
         build_ast(ast, join_models, fields_with_types, [{op, line, internal_ast} | List.wrap(new_ast)])
       {{:'.', line, [{model, line, nil}, field]}, line, _val} ->
-        join_models = Enum.map(join_models, fn(m) -> String.to_atom(m) end)
         index = Exd.Util.get_index(join_models, model)
         {val, ast} = get_val(ast)
         build_ast(ast, join_models, fields_with_types, [[{{:'.', [], [{:'&', [], [index]}, field]}, [], []}, val] | new_ast] |> :lists.flatten)

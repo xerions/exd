@@ -102,10 +102,10 @@ defmodule Exd.Api.Crud do
     model = model(api)
     field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
     params = Stream.map(params, &to_list/1) |> Enum.into(%{})
-    join_models = Exd.Builder.Join.models(params)
+    join_models = Exd.Builder.Join.models(api, params)
     from(m in model) |> Exd.Builder.Where.build(params, join_models, field_types)
                      |> Exd.Builder.OrderBy.build(params)
-                     |> Exd.Builder.Join.build(params)
+                     |> Exd.Builder.Join.build(params, join_models)
                      |> Exd.Builder.Select.build(params, join_models)
                      |> Exd.Builder.QueryExpr.build(params)
                      |> Exd.Builder.Load.build(params)
