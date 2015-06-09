@@ -9,5 +9,5 @@ defmodule Exd.Builder.Select do
 
   def build(query, _, _), do: query
 
-  defp ast(field, index), do: {field |> String.to_atom,{{:'.',[],[{:'&',[],[index]}, field |> String.to_atom]},[],[]}}
+  defp ast(field, index), do: {field, {{:'.',[],[{:'&',[], [index]}, field]},[],[]}}
 end
