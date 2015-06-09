@@ -227,16 +227,11 @@ defmodule Exd.Api.Crud do
     unless_error(data, api, Callbacks.__apply__(api, callback, data))
   end
 
-  defp format_select_response([]), do: []
-  defp format_select_response(data) do
-    Enum.map(data, fn(map) -> Map.to_list(map) end)
-  end
-
   defp format_data(data, api, params, opts) do
     # 'select' response is not __struct__, so we need to  format in other place
     case params["select"] do
       nil -> unless_error(data, api, export_data(data, opts))
-      _ -> unless_error(data, api, format_select_response(data))
+      _ -> unless_error(data, api, data)
     end
   end
 
