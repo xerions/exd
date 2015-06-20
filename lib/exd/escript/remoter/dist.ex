@@ -90,10 +90,8 @@ defmodule Exd.Escript.Remoter.Dist do
   end
 
   defp api_info(app, module) do
-    {Apix.spec(module), %{app:     app,
-                          node:    node,
-                          module:  module,
-                          name:    Apix.spec(module, :name),
-                          doc:     Apix.spec(module, :doc)}}
+    introspection = Apix.apply(module, "options", %{})
+    remote_information = %{app: app, node: node, module: module}
+    {introspection[:name], Map.merge(introspection, remote_information)}
   end
 end

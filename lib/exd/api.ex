@@ -103,7 +103,7 @@ defmodule Exd.Api do
     module.__schema__(:associations) |> Enum.flat_map(fn(association) ->
       case module.__schema__(:association, association) do
         %Ecto.Association.BelongsTo{owner_key: field, assoc: assoc_module} ->
-          [{field, table_name(assoc_module), assoc_module}]
+          [{field, assoc_module.__schema__(:source), assoc_module}]
         _ ->
           []
       end

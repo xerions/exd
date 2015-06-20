@@ -98,8 +98,8 @@ available apis:
     result_to_string(command, opts[:formatter] || "native", result) |> IO.puts
   end
 
-  defp print_api({tech_name, %{app: app, name: name, doc: doc}}, script) do
-    "  #{tech_name} - #{name}: #{doc}    example: #{script} option #{app}/#{tech_name}"
+  defp print_api({_, %{app: app, name: name, desc_name: desc_name, description: doc}}, script) do
+    "  #{name} - #{desc_name}: #{doc}    example: #{script} option #{app}/#{name}"
   end
 
   defp result_to_string(_command, "native", result) do
@@ -109,18 +109,6 @@ available apis:
   defp result_to_string(_command, "json", result) do
     Poison.encode!(result) |> :jsx.prettify
   end
-
-  #defp select(node, api, query_content) do
-  #  case rpc(node, api.select_on(query_content)) do
-  #    [] ->
-  #      IO.puts "Nothing found"
-  #    query_result ->
-  #      fields = rpc(node, api.__schema__(:fields))
-  #      String.duplicate("-", 80) |> IO.puts
-  #      for row <- query_result, do: print_row(row, fields)
-  #      String.duplicate("-", 80) |> IO.puts
-  #  end
-  #end
 
   defp payload(payload, "native") do
     splited = Enum.map(payload, &String.split(&1, ":", parts: 2))
