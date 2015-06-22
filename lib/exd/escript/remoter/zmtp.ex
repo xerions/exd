@@ -6,14 +6,19 @@ defmodule Exd.Escript.Remoter.Zmtp do
 
   @behaviour Exd.Escript.Remoter
 
-  def applications() do
+  def applications(_) do
     init_zmtp
-    :hello_client.start_link({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', {[], [], []})
-    :hello_client.call(__MODULE__, {"options", [], []})
+    {:ok, client} = :hello_client.start_link({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', {[], [], []})
+    Tuple.insert_at(:hello_client.call(__MODULE__, {"options", %{}, []}), 2, %{client: client})
   end
 
-  def remote(_api, _method, _payload) do
-    :test
+  def remote(api, method, payload, opts) do
+    metadata = %{}
+    metadata = Map.put_new(metadata, :module, api["module"] |> String.to_atom)
+    metadata = Map.put_new(metadata, :payload, payload)
+    {:ok, response} = :hello_client.call(opts[:client], {method, metadata, []})
+    :hello_client.stop(__MODULE__)
+    response
   end
 
   def init_zmtp() do
@@ -22,5 +27,4 @@ defmodule Exd.Escript.Remoter.Zmtp do
     Application.ensure_all_started(:ezmq)
     Application.get_env(:exd, :test) |> IO.inspect
   end
-
 end
