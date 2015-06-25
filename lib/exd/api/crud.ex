@@ -104,10 +104,11 @@ defmodule Exd.Api.Crud do
     field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
     params = Stream.map(params, &to_list/1) |> Enum.into(%{})
     join_models = Exd.Builder.Join.models(api, params)
+    aggr_funs = Exd.Builder.Select.funs(api, params)
     from(m in model) |> Exd.Builder.Where.build(params, join_models, field_types)
                      |> Exd.Builder.OrderBy.build(params, join_models)
                      |> Exd.Builder.Join.build(params, join_models)
-                     |> Exd.Builder.Select.build(params, join_models)
+                     |> Exd.Builder.Select.build(params, join_models, aggr_funs)
                      |> Exd.Builder.QueryExpr.build(params)
                      |> Exd.Builder.Load.build(params)
                      |> (repo(api)).all
@@ -235,18 +236,17 @@ defmodule Exd.Api.Crud do
     end
   end
 
+  defp export_data(nil, _opts), do: nil
   defp export_data(data, opts \\ [as: :get])
   defp export_data(data, opts) when is_list(data), do: Enum.map(data, &export_data(&1, opts))
-  defp export_data(%{id: id} = data, opts) do
+  defp export_data(data, opts) do
     case opts[:as] do
       :get ->
         Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform/1) |> Enum.into(%{})
       :write ->
-        %{id: id}
+        %{id: data[:id]}
     end
   end
-
-  defp export_data(nil, _opts), do: nil
 
   defp filter_assocs({_key, %Ecto.Association.NotLoaded{}}), do: false
   defp filter_assocs({_key, _}), do: true
