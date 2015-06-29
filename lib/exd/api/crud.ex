@@ -137,7 +137,7 @@ defmodule Exd.Api.Crud do
   def post(api, params) do
     changeset = changeset(api.__exd_api__(:instance), api, :create, params)
     if changeset.valid? do
-      save(repo(api).insert(changeset)) |> notify(api, :after_post) |> format_data(api, params, as: :write)
+      save(repo(api).insert!(changeset)) |> notify(api, :after_post) |> format_data(api, params, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -178,7 +178,7 @@ defmodule Exd.Api.Crud do
     else changeset end
 
     if changeset.valid? do
-      save(repo(api).update(changeset)) |> notify(api, :after_put) |> format_data(api, params, as: :write)
+      save(repo(api).update!(changeset)) |> notify(api, :after_put) |> format_data(api, params, as: :write)
     else
       %{errors: :maps.from_list(changeset.errors)}
     end
@@ -203,7 +203,7 @@ defmodule Exd.Api.Crud do
   def delete(api, params) do
     case get_one(api, params) do
       nil    -> nil
-      result -> unless_error(result, api, save(repo(api).delete(result)) |> notify(api, :after_delete) |> format_data(api, params, as: :write))
+      result -> unless_error(result, api, save(repo(api).delete!(result)) |> notify(api, :after_delete) |> format_data(api, params, as: :write))
     end
   end
 
