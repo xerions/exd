@@ -38,7 +38,7 @@ defmodule Exd.Escript.Remoter.Dist do
                 |> Enum.into(%{})
   end
 
-  def remote(_api = %{node: node, module: module}, method, payload) do
+  def remote(_api = %{node: node, module: module}, method, payload, _opts) do
     rpc(node, module.__apix__(:apply, method, payload))
   end
 

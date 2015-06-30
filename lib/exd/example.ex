@@ -25,6 +25,9 @@ if Mix.env in [:dev, :test] do
     @tech_name "weather"
     use Exd.Api, model: Weather, repo: EctoIt.Repo
     crud
+
+    require Exd.Plugin.Hello
+    Exd.Plugin.Hello.def_service(:weather)
   end
 
   defmodule City.Api do

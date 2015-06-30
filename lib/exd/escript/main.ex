@@ -4,11 +4,14 @@ defmodule Exd.Escript.Main do
     {opts, args, _} = OptionParser.parse(args, @parse_opts)
     remoter = Exd.Escript.Remoter.get( opts[:remoter] || "dist" ) || fail("remoter: #{opts[:remoter]} not supported")
     script = script()
-    local_apps = remoter.applications(script)
-    main(args, opts, script, remoter, local_apps)
+    {local_apps, remoter_opts} = case remoter.applications(script) do
+                           {:ok, apps, remoter_opts} -> {apps, remoter_opts}
+                           apps -> {apps, %{}}
+                         end
+    main(args, opts, script, remoter, local_apps, remoter_opts)
   end
 
-  def main([], _opts, script, _remoter, local_apps) do
+  def main([], _opts, script, _remoter, local_apps, remoter_opts) do
     apps = local_apps |> Stream.map(&elem(&1, 0)) |> Enum.join(", ")
     example_app = map_key(local_apps, "app")
     example_api = local_apps[example_app] |> map_key("api")
@@ -56,15 +59,17 @@ available opts:
 """
   end
 
-  def main([command],opts, script, remoter, local_apps) do
+  def main([command],opts, script, remoter, local_apps, remoter_opts) do
     IO.puts "Error: 'exd #{command}' command must have options"
-    main([], opts, script, remoter, local_apps)
+    main([], opts, script, remoter, local_apps, remoter_opts)
   end
 
-  def main([command, link | payload], opts, script, remoter, local_apps) do
+  def main([command, link | payload], opts, script, remoter, local_apps, remoter_opts) do
     [app | link_rest] = String.split(link, "/")
-    apis = local_apps[app] || fail("application: #{app} not found")
-    on_app(command, opts, app, link_rest, payload, apis, script, remoter)
+    Enum.each(List.wrap(local_apps), fn(apps) ->
+      apis = apps[app] || fail("application: #{app} not found")
+      on_app(command, opts, app, link_rest, payload, apis, script, remoter, remoter_opts)
+    end)
   end
 
   #defp main(node, _model, api, "list", []) do
@@ -77,7 +82,7 @@ available opts:
   #  :timer.sleep(:infinity)
   #end
 
-  defp on_app("options", _opts, app, [], _, apis, script, _remoter) do
+  defp on_app("options", _opts, app, [], _, apis, script, _remoter, remoter_opts) do
     IO.puts """
 link: #{app}
 
@@ -86,15 +91,15 @@ available apis:
 """
   end
 
-  defp on_app(command, opts, app, [api], payload, apis, script, remoter) do
+  defp on_app(command, opts, app, [api], payload, apis, script, remoter, remoter_opts) do
     api_map = apis[api] || fail("application: #{app}: api #{api} not found")
     IO.puts("link: #{app}/#{api}")
-    on_command(command, opts, api_map, payload, script, remoter)
+    on_command(command, opts, api_map, payload, script, remoter, remoter_opts)
   end
 
-  defp on_command(command, opts, api, payload, _script, remoter) do
+  defp on_command(command, opts, api, payload, _script, remoter, remoter_opts) do
     payload_map = payload(payload, opts[:input] || "native")
-    result = remoter.remote(api, command, payload_map)
+    result = remoter.remote(api, command, payload_map, remoter_opts)
     result_to_string(command, opts[:formatter] || "native", result) |> IO.puts
   end
 
