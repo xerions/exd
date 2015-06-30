@@ -4,5 +4,6 @@ defmodule ExdTest do
 
   test "test" do
     assert "Weather API documentation" = Apix.spec(Weather.Api, :doc)
+
   end
 end

@@ -13,26 +13,32 @@ if Mix.env in [:dev, :test] do
 
   model City do
     schema "city" do
-      field :city_id, :integer
       field :name, :string
       field :country, :string
+      has_many :weathers, Weather
     end
   end
+
+  import Exd.Plugin.Hello
 
   defmodule Weather.Api do
     @moduledoc "Weather API documentation"
     @name "Weather"
     @tech_name "weather"
+    @optional [:prcp, :temp_lo, :temp_hi]
     use Exd.Api, model: Weather, repo: EctoIt.Repo
     crud
+    def_service(:test_app)
   end
 
   defmodule City.Api do
     @moduledoc "City API documentation"
     @name "City"
-    @tech_name "weather"
+    @tech_name "city"
+    @optional [:country]
     use Exd.Api, model: City, repo: EctoIt.Repo
     crud
+    def_service(:test_app)
   end
 
 end
