@@ -28,9 +28,9 @@ defmodule Exd.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [{:postgrex, ">= 0.0.0", optional: true},
-     {:jsx, github: "talentdeficit/jsx", branch: "develop"},
-     {:mariaex, ">= 0.1.0", optional: true},
-     {:ecto_it, "~> 0.1.0", optional: true},
+     {:mariaex,  ">= 0.1.0", optional: true},
+     {:ecto_it,  "~> 0.1.0", optional: true},
+     {:jsx,      "~> 2.6.2"},
      {:hello, github: "travelping/hello", branch: "hello_v3", optional: true},
 
      {:lager, "~> 2.1.1", override: true},
