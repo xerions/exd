@@ -1,6 +1,6 @@
 defmodule Exd.Builder.Select do
 
-  @aggr_funs ["count", "avg", "sum", "min", "max"]
+  @aggr_funs ["count", "avg", "sum", "min", "max", "like"]
   def funs(api, params) do
     keys = Map.keys(params)
     Enum.map(keys, fn(k) ->
@@ -33,7 +33,16 @@ defmodule Exd.Builder.Select do
   def build(query, _, _), do: query
 
   defp field_ast(field, index), do: {{:'.', [],[{:'&',[], [index]}, field]},[],[]}
-  defp fn_ast(meta, field, index), do: {meta, [], [{{:'.',[],[{:'&',[],[0]}, field]},[],[]}]}
+
+  defp fn_ast(meta, field, index) do
+    case meta do
+      :like ->
+        [field, like] = String.split(to_string(field), ":")
+        {meta, [], [{{:'.',[],[{:'&',[],[0]}, String.to_atom(field)]},[],[]}, like]}
+      _ ->
+        {meta, [], [{{:'.',[],[{:'&',[],[0]}, field]},[],[]}]}
+    end
+  end
 
   defp generate_key(field, 0, _), do: field
   defp generate_key(field, index, join_models), do: "#{Enum.at(join_models, index - 1)}.#{field}"

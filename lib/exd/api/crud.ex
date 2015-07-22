@@ -232,7 +232,18 @@ defmodule Exd.Api.Crud do
     # 'select' response is not __struct__, so we need to  format in other place
     case params["select"] do
       nil -> unless_error(data, api, export_data(data, opts))
-      _ -> unless_error(data, api, data)
+      _ ->
+        data = Enum.map(data, fn(map) ->
+          case Map.has_key?(map, :like) do
+            true ->
+              case map[:like] == 0 do
+                true -> []
+                false -> Map.delete(map, :like)
+              end
+            false -> map
+          end
+        end) |> :lists.flatten
+        unless_error(data, api, data)
     end
   end
 
