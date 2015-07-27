@@ -101,11 +101,10 @@ defmodule Exd.Api.Crud do
 
   defp select(api, params) do
     model = model(api)
-    field_types = for field <- model.__schema__(:fields), do: {field, model.__schema__(:field, field)}
     params = Stream.map(params, &to_list/1) |> Enum.into(%{})
     join_models = Exd.Builder.Join.models(api, params)
     aggr_funs = Exd.Builder.Select.funs(api, params)
-    from(m in model) |> Exd.Builder.Where.build(params, join_models, field_types)
+    from(m in model) |> Exd.Builder.Where.build(params, join_models, model.__schema__(:types))
                      |> Exd.Builder.OrderBy.build(params, join_models)
                      |> Exd.Builder.Join.build(params, join_models)
                      |> Exd.Builder.Select.build(params, join_models, aggr_funs)
@@ -345,7 +344,7 @@ defmodule Exd.Api.Crud do
 
   defp field_string(model, field, optional) do
     optional_string = if optional do ", optional" else "" end
-    type = model.__schema__(:field, field)
+    type = model.__schema__(:type, field)
     " * `#{field}` - #{type}#{optional_string} #{model.__attribute_option__(field)[:desc] || ""}"
   end
 
