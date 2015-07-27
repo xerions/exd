@@ -4,7 +4,6 @@ defmodule Exd.Mixfile do
   def project do
     [app: :exd,
      version: "0.1.0-dev",
-     elixir: "~> 1.1-dev",
      deps: deps,
      compilers: [:erlang, :elixir, :app]]
   end
@@ -31,7 +30,7 @@ defmodule Exd.Mixfile do
      {:mariaex,  ">= 0.1.0", optional: true},
      {:ecto_it,  "~> 0.2.0", optional: true},
      {:jsx,      "~> 2.6.2"},
-     {:hello, github: "travelping/hello", branch: "hello_v3", optional: true},
+     {:hello, github: "travelping/hello", branch: "master", optional: true},
 
      {:lager, "~> 2.1.1", override: true},
      {:exscript, "~> 0.0.1"},

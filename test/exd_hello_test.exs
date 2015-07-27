@@ -6,8 +6,8 @@ defmodule ExdHelloTest do
     Application.ensure_all_started(:ecto_it)
     Exd.Plugin.Hello.start_listener('zmq-tcp://127.0.0.1:10900')
     for model <- [City, Weather], do: Exd.Model.compile_migrate(EctoIt.Repo, model, [])
-    for api <- [City.Api, Weather.Api], do: :hello.bind('zmq-tcp://127.0.0.1:10900', api)
-    :hello_client.start({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', [], [decoder: :hello_json], [])
+    for api <- [City.Api, Weather.Api], do: Hello.bind('zmq-tcp://127.0.0.1:10900', api)
+    Hello.Client.start({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', [], [], [])
     on_exit fn() -> :application.stop(:ecto_it) end
     :ok
   end
@@ -20,6 +20,6 @@ defmodule ExdHelloTest do
   end
 
   defp call(method, resource, params) do
-    :hello_client.call(__MODULE__, {method, Map.put(params, "resource", resource), []})
+    Hello.Client.call(__MODULE__, {method, Map.put(params, "resource", resource), []})
   end
 end

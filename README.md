@@ -1,4 +1,4 @@
-Exd
+Exd [![Build Status](https://travis-ci.org/xerions/exd.svg)](https://travis-ci.org/xerions/exd)
 ===
 
 Main goals
