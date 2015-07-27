@@ -244,7 +244,7 @@ defmodule Exd.Api.Crud do
       :get ->
         Map.drop(data, [:__meta__, :__struct__]) |> Enum.filter_map(&filter_assocs/1, &transform/1) |> Enum.into(%{})
       :write ->
-        %{id: data[:id]}
+        %{id: data.id}
     end
   end
 
