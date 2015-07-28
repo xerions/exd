@@ -87,7 +87,7 @@ defmodule Exd.Api do
   end
 
   defp datatype(api, field) do
-    type = api.__schema__(:field, field)
+    type = api.__schema__(:type, field)
     if function_exported?(type, :type, 0) do type.type else type end
   end
 
