@@ -1,4 +1,4 @@
-Exd [![Build Status](https://travis-ci.org/xerions/exd.svg)](https://travis-ci.org/xerions/exd)
+Exd [![Build Status](https://travis-ci.org/xerions/exd.svg)](https://travis-ci.org/xerions/exd) [![Coverage Status](https://coveralls.io/repos/xerions/exd/badge.svg?branch=master&service=github)](https://coveralls.io/github/xerions/exd?branch=master)
 ===
 
 Main goals

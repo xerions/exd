@@ -5,6 +5,7 @@ defmodule Exd.Mixfile do
     [app: :exd,
      version: "0.1.0-dev",
      deps: deps,
+     test_coverage: [tool: Coverex.Task, coveralls: true],
      compilers: [:erlang, :elixir, :app]]
   end
 
@@ -39,6 +40,7 @@ defmodule Exd.Mixfile do
      {:ecto_migrate, "~> 0.5.0"},
      {:poison, "~> 1.4.0"},
 
+     {:coverex, "~> 1.4.1", only: :test}, 
      {:earmark, "~> 0.1", only: :dev},
      {:ex_doc, "~> 0.7", only: :dev}]
   end
