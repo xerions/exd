@@ -38,12 +38,12 @@ example of usage:
   #{script} get #{link} id:1
   #{script} get #{link} where:"id < 10 and id > 1" limit:5 offset:5
   #{script} get #{link} where:"id < 10" order_by:"id:desc" limit:5 offset:5
-  #{script} get #{link} join:"my_model, my_model2", where:"my_model.id == 10 or my_model.id == 15"
-  #{script} get #{link} join:"my_model, my_model2", where:"my_model.id == 10", select:"name,my_model2.name"
-  #{script} get #{link} join:"my_model, my_model2", where:"my_model.id == 10", count:"my_model2.name"
-  #{script} get #{link} join:"my_model, my_model2", where:"my_model.id == 10", min:"my_model2.name"
+  #{script} get #{link} join:"my_model, my_model2" where:"my_model.id == 10 or my_model.id == 15"
+  #{script} get #{link} join:"my_model, my_model2" where:"my_model.id == 10" select:"name,my_model2.name"
+  #{script} get #{link} join:"my_model, my_model2" where:"my_model.id == 10" count:"my_model2.name"
+  #{script} get #{link} join:"my_model, my_model2" where:"my_model.id == 10" min:"my_model2.name"
   #{script} post #{link} key:value
-  #{script} update #{link} id:1 key:value
+  #{script} put #{link} id:1 key:value
   #{script} delete #{link} id:1
 
 aliases:

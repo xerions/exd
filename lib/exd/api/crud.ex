@@ -96,7 +96,9 @@ defmodule Exd.Api.Crud do
   end
 
   @lists ["full_join", "right_join", "left_join", "join", "load", "select"]
-  defp to_list({key, value}) when is_binary(value) and key in @lists, do: {key, String.split(value, ",")}
+  defp to_list({key, value}) when is_binary(value) and key in @lists do 
+    {key, String.split(value, ",") |> Enum.map(&String.strip/1)}
+  end
   defp to_list({key, value}), do: {key, value}
 
   defp select(api, params) do

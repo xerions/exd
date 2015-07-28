@@ -15,7 +15,7 @@ if Mix.env in [:dev, :test] do
     schema "city" do
       field :name, :string
       field :country, :string
-      has_many :weathers, Weather
+      has_many :weather, Weather
     end
   end
 

@@ -80,13 +80,13 @@ Now you have many different methods, which is possible to introspect with [apix]
 
 ```elixir
 iex> Apix.spec(Weather.Api, :methods)
-["option", "insert", "put", "get", "delete"]
+["options", "post", "put", "get", "delete"]
 ```
 
-By using of `Exd.Api` you will be automatically get method option, which is possible to use to introspect yourself.
+By using of `Exd.Api` you will be automatically get method options, which is possible to use to introspect yourself.
 
 ```elixir
-iex> Apix.apply(Weather.Api, "option", %{})
+iex> Apix.apply(Weather.Api, "options", %{})
 ```
 
 CLI
@@ -103,7 +103,9 @@ Start named node:
 ```elixir
 $ MIX_ENV=test iex --sname test -S mix
 iex> Application.ensure_all_started(:ecto_it)
+iex> Ecto.Migration.Auto.migrate(EctoIt.Repo, City)
 iex> Ecto.Migration.Auto.migrate(EctoIt.Repo, Weather)
+iex> :code.load_file(City.Api)
 iex> :code.load_file(Weather.Api)
 ```
 
