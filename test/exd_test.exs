@@ -15,6 +15,9 @@ defmodule ExdTest do
     assert [] = method -- weather[:methods]
     assert [] = method -- city[:methods]
 
+    assert :weather = Exd.Util.table_name(Weather)
+    assert :city = Exd.Util.table_name(City)
+
     check_weather_fields(weather[:fields])
     check_city_fields(weather[:fields])
   end

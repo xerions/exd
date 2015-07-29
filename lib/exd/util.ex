@@ -2,7 +2,7 @@ defmodule Exd.Util do
   @shortdoc "Exd.Model utils"
 
   def table_name(model) do
-    model.__schema__(:source) |> Kernel.to_atom
+    model.name |> String.to_atom
   end
 
   def field(value, join_models) do

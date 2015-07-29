@@ -8,14 +8,17 @@ defmodule ExdHelloTest do
     for model <- [City, Weather], do: Exd.Model.compile_migrate(EctoIt.Repo, model, [])
     for api <- [City.Api, Weather.Api], do: Hello.bind('zmq-tcp://127.0.0.1:10900', api)
     Hello.Client.start({:local, __MODULE__}, 'zmq-tcp://127.0.0.1:10900', [], [], [])
-    on_exit fn() -> :application.stop(:ecto_it) end
+    on_exit fn() -> 
+      :application.stop(:hello)
+      :application.stop(:ecto_it) 
+    end
     :ok
   end
 
   test "hello client" do
     # create
     assert {:ok, %{"id" => id}} = call("post", "city", %{"name" => "Berlin"})
-    assert {:ok, %{"id" => _}} = call("post", "city", %{"country" => "Germany", "name" => "Hamburg"})
+    assert {:ok, %{"id" => _}} = call("post", "city", ["country": "Germany", "name": "Hamburg"])
     assert {:ok, %{"id" => nid}} = call("post", "city", %{"country" => "Russia", "name" => "Novosibirsk"})
     assert {:ok, %{"id" => _}} = call("post", "city", %{"country" => "Russia", "name" => "Moscow"})
     assert {:ok, %{"id" => _}} = call("post", "city", %{"country" => "Russia", "name" => "Omsk"})
@@ -42,15 +45,25 @@ defmodule ExdHelloTest do
     assert {:ok, [%{"name" => "Novosibirsk"}]} = call("get", "city", %{"where" => "country == \"Russia\"",
                                                                        "limit" => 1, "offset" => 0})
     assert {:ok, [%{"name" => "Moscow"}]} = call("get", "city", %{"where" => "country == \"Russia\"",
-                                                                  "limit" => 1, "offset" => 1})
+                                                                  "limit" => "1", "offset" => "1"})
     assert {:ok, [%{"name" => "Omsk"}]} = call("get", "city", %{"where" => "country == \"Russia\"",
                                                                 "limit" => 1, "offset" => 2})
+
+    # distinct
+    assert {:ok, [%{"country" => :null}, 
+                  %{"country" => "Germany"}, 
+                  %{"country" => "Russia"}, 
+                  %{"country" => "UK"}]} = call("get", "city", %{"select" => "country", "distinct" => true})
 
     # order
     assert {:ok, [%{"name" => "Moscow"}, 
                   %{"name" => "Novosibirsk"},
                   %{"name" => "Omsk"}]} = call("get", "city", %{"where" => "country == \"Russia\"", 
                                                                 "order_by" => "name"})
+    assert {:ok, [%{"name" => "Omsk"}, 
+                  %{"name" => "Novosibirsk"},
+                  %{"name" => "Moscow"}]} = call("get", "city", %{"where" => "country == \"Russia\"", 
+                                                                "order_by" => "name:desc"})
 
     # join
     assert {:ok, [%{"name" => "Novosibirsk", "weather.temp_lo" => -30}]} 
@@ -68,7 +81,10 @@ defmodule ExdHelloTest do
     assert {:ok, :null} = call("get", "city", %{"id" => id})
   end
 
-  defp call(method, resource, params) do
+  defp call(method, resource, params) when is_map(params) do
     Hello.Client.call(__MODULE__, {method, Map.put(params, "resource", resource), []})
+  end
+  defp call(method, resource, params) when is_list(params) do
+    Hello.Client.call(__MODULE__, {method, params ++ ["resource": resource], []})
   end
 end

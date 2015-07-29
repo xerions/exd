@@ -41,6 +41,9 @@ defmodule Exd.Mixfile do
      {:poison, "~> 1.4.0"},
 
      {:coverex, "~> 1.4.1", only: :test}, 
+     {:meck, "~> 0.8.2", override: true, only: :test},
+     {:mock, github: "jjh42/mock", only: :test},
+
      {:earmark, "~> 0.1", only: :dev},
      {:ex_doc, "~> 0.7", only: :dev}]
   end
