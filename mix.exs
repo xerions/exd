@@ -31,7 +31,7 @@ defmodule Exd.Mixfile do
      {:mariaex,  ">= 0.1.0", optional: true},
      {:ecto_it,  "~> 0.2.0", optional: true},
      {:jsx,      "~> 2.6.2"},
-     {:hello, github: "travelping/hello", branch: "master", optional: true},
+     {:hello, github: "travelping/hello", optional: true},
 
      {:lager, "~> 2.1.1", override: true},
      {:exscript, "~> 0.0.1"},
