@@ -48,6 +48,12 @@ defmodule ExdHelloTest do
                                                                   "limit" => "1", "offset" => "1"})
     assert {:ok, [%{"name" => "Omsk"}]} = call("get", "city", %{"where" => "country == \"Russia\"",
                                                                 "limit" => 1, "offset" => 2})
+    # like 
+    assert {:ok, [%{"name" => "Novosibirsk"}, 
+                  %{"name" => "Omsk"}]} = call("get", "city", %{"where" => "name like \"%sk%\""})
+    assert {:ok, [%{"name" => "Omsk"}]} = call("get", "city", %{"where" => "name like \"%msk\""})
+    assert {:ok, [%{"name" => "Berlin"}]} = call("get", "city", %{"where" => "name like \"b%\""})
+    assert {:ok, [%{"name" => "Berlin"}]} = call("get", "city", %{"where" => "name like \"berlin\""})
 
     # distinct
     assert {:ok, [%{"country" => :null}, 

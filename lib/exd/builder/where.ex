@@ -13,6 +13,15 @@ defmodule Exd.Builder.Where do
     where_clause
   end
 
+  defp transform({a, aline, [{op, _, [b]}]}, join_models, fields_with_types)
+  when op in [:'like', :'ilike'] do
+    ast = [{a, aline, nil}, b] 
+    {
+        {op, [], build_ast(ast, join_models, fields_with_types)},
+        fields_with_types
+    }
+  end
+
   defp transform({op, _field_line, ast}, join_models, fields_with_types)
   when op in [:'not', :'or', :'and', :'==', :'>', :'<', :'!=', :'>=', :'<='] do
     {
@@ -27,7 +36,7 @@ defmodule Exd.Builder.Where do
   defp build_ast([], _join_models, _fields_with_types, new_ast), do: new_ast
   defp build_ast([branch | ast], join_models, fields_with_types, new_ast) do
     case branch do
-      {op, line, tmp_ast} when op in [:'not', :'or', :'and', :'==', :'>', :'<', :'!=', :'>=', :'<='] ->
+      {op, line, tmp_ast} when op in [:'not', :'or', :'and', :'==', :'>', :'<', :'!=', :'>=', :'<=', :'like', :'ilike'] ->
         internal_ast = build_ast(tmp_ast, join_models, fields_with_types, [])
         build_ast(ast, join_models, fields_with_types, [{op, line, internal_ast} | List.wrap(new_ast)])
       {{:'.', line, [{model, line, nil}, field]}, line, _val} ->
