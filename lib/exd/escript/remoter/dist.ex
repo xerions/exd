@@ -49,19 +49,12 @@ defmodule Exd.Escript.Remoter.Dist do
   end
 
   def local_nodes() do
-    {:ok, hostname} = :inet.gethostname
-    bin_node_names |> Enum.map(&(:"#{&1}@#{hostname}"))
+    bin_node_names |> Enum.map(&(:"#{&1}@#{:net_adm.localhost}"))
   end
 
   defp bin_node_names() do
-    System.cmd("epmd", ["-names"]) |> elem(0) |> String.split("\n") |> Enum.flat_map(&node_name(&1))
-  end
-
-  defp node_name(line) do
-    case String.split(line) do
-      ["name", node_name | _] -> [node_name]
-      _ -> []
-    end
+    {:ok, names} = :net_adm.names
+    for {name, _} <- names, do: :erlang.list_to_binary(name)  
   end
 
   defp exd_name("exd_script" <> digit), do: [String.to_integer(digit)]

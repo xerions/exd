@@ -1,5 +1,5 @@
 defmodule Exd.Builder.QueryExpr do
-  @supported_expr [limit: :integer, distincts: :string, offset: :integer]
+  @supported_expr [limit: :integer, distinct: :string, offset: :integer]
 
   def build(query, query_content) do
     Enum.reduce(@supported_expr, query, &build_expr(&2, query_content, &1))
