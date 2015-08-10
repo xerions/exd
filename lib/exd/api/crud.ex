@@ -30,7 +30,7 @@ defmodule Exd.Api.Crud do
         crud, only: [:post, :get]
       end
   """
-  import Ecto.Query
+  #import Ecdo
   alias Exd.Api.Callbacks
 
   defmacrop repo(api) do
@@ -78,43 +78,16 @@ defmodule Exd.Api.Crud do
   end
 
   defp get_one(api, %{"id" => id} = params) do
-    repo(api).get(model(api), id) |> save |> load(api, params)
+    data = model(api) |> Ecdo.query(Map.put(params, "where", [{:==, "id", id}])) |> repo(api).one |> save
+    unless_error(data, api, data)
   end
   defp get_one(api, %{"name" => name} = params) do
-    repo(api).get_by(model(api), name: name) |> save |> load(api, params)
+    data = model(api) |> Ecdo.query(Map.put(params, "where", [{:==, "name", name}])) |> repo(api).one |> save
+    unless_error(data, api, data)
   end
 
-  defp load(data, api, params) do
-    unless_error(data, api, load_apply(data, api, params))
-  end
-
-  defp load_apply(data, api, params) do
-    if data do
-      preload = Exd.Builder.Load.preload(params, model(api))
-      repo(api).preload(data, preload) |> save
-    end
-  end
-
-  @lists ["full_join", "right_join", "left_join", "join", "load", "select"]
-  defp to_list({key, value}) when is_binary(value) and key in @lists do 
-    {key, String.split(value, ",") |> Enum.map(&String.strip/1)}
-  end
-  defp to_list({key, value}), do: {key, value}
-
-  defp select(api, params) do
-    model = model(api)
-    params = Stream.map(params, &to_list/1) |> Enum.into(%{})
-    join_models = Exd.Builder.Join.models(api, params)
-    aggr_funs = Exd.Builder.Select.funs(api, params)
-    from(m in model) |> Exd.Builder.Where.build(params, join_models, model.__schema__(:types))
-                     |> Exd.Builder.OrderBy.build(params, join_models)
-                     |> Exd.Builder.Join.build(params, join_models)
-                     |> Exd.Builder.Select.build(params, join_models, aggr_funs)
-                     |> Exd.Builder.QueryExpr.build(params)
-                     |> Exd.Builder.Load.build(params)
-                     |> (repo(api)).all
-                     |> save
-  end
+  defp select(api, params), do:
+    model(api) |> Ecdo.query(params) |> repo(api).all |> save
 
   @doc """
   Generic post function, which uses default changset implementation or model defined `changeset/3`
