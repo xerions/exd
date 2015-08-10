@@ -50,10 +50,10 @@ defmodule ExdHelloTest do
                                                                 "limit" => 1, "offset" => 2})
     # like 
     assert {:ok, [%{"name" => "Novosibirsk"}, 
-                  %{"name" => "Omsk"}]} = call("get", "city", %{"where" => "name like \"%sk%\""})
-    assert {:ok, [%{"name" => "Omsk"}]} = call("get", "city", %{"where" => "name like \"%msk\""})
-    assert {:ok, [%{"name" => "Berlin"}]} = call("get", "city", %{"where" => "name like \"b%\""})
-    assert {:ok, [%{"name" => "Berlin"}]} = call("get", "city", %{"where" => "name like \"berlin\""})
+                  %{"name" => "Omsk"}]} = call("get", "city", %{"where" => "like(name, \"%sk%\")"})
+    assert {:ok, [%{"name" => "Omsk"}]} = call("get", "city", %{"where" => "like(name, \"%msk\")"})
+    assert {:ok, [%{"name" => "Berlin"}]} = call("get", "city", %{"where" => "like(name, \"b%\")"})
+    assert {:ok, [%{"name" => "Berlin"}]} = call("get", "city", %{"where" => "like(name, \"berlin\")"})
 
     # distinct
     assert {:ok, [%{"country" => :null}, 
@@ -72,9 +72,9 @@ defmodule ExdHelloTest do
                                                                 "order_by" => "name:desc"})
 
     # join
-    assert {:ok, [%{"name" => "Novosibirsk", "weather.temp_lo" => -30}]} 
+    assert {:ok, [%{"city.name" => "Novosibirsk", "weather.temp_lo" => -30}]} 
             = call("get", "city", %{"where" => "city.name == \"Novosibirsk\"",
-                                    "join" => "city, weather", "select" => "city.name, weather.temp_lo"})
+                                    "join" => ["city","weather"], "select" => "city.name,weather.temp_lo"})
 
     # update
     assert {:ok, %{"id" => wid}} = call("put", "weather", %{"id" => wid, "temp_lo" => 14, "temp_hi" => 25})
