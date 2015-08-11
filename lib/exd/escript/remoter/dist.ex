@@ -75,7 +75,7 @@ defmodule Exd.Escript.Remoter.Dist do
   """
   def apis(app) do
     {:ok, modules} = :application.get_key(app, :modules)
-    modules = for module <- modules, function_exported?(module, :__apix__, 0), do: module
+    modules = for module <- modules, model_loaded?(module), do: module
     case modules do
       []      -> nil
       modules -> Stream.map(modules, &api_info(app, &1)) |> Enum.into(%{})
@@ -86,5 +86,10 @@ defmodule Exd.Escript.Remoter.Dist do
     introspection = Apix.apply(module, "options", %{})
     remote_information = %{app: app, node: node, module: module}
     {introspection[:name], Map.merge(introspection, remote_information)}
+  end
+
+  defp model_loaded?(module) do
+    :code.is_loaded(module) == false and :code.load_file(module)
+    function_exported?(module, :__apix__, 0)
   end
 end
