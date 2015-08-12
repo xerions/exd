@@ -11,7 +11,7 @@ defmodule ExdDistTest do
   end
 
   test_with_mock "remoter", :net_adm, [:unstick, :passthrough], 
-    [localhost: fn() -> Atom.to_string(node()) |> String.split("@") |> List.last end] do
+    [localhost: fn() -> Atom.to_string(node()) |> String.split("@") |> List.last |> String.to_char_list end] do
      remoter = Exd.Escript.Remoter.get("dist")
      assert ["exd"] = remoter.applications(:test) |> Map.keys 
      api = remoter.applications(:test)["exd"]["city"]

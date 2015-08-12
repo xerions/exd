@@ -49,7 +49,8 @@ defmodule Exd.Escript.Remoter.Dist do
   end
 
   def local_nodes() do
-    bin_node_names |> Enum.map(&(:"#{&1}@#{:net_adm.localhost}"))
+    hostname = :net_adm.localhost |> List.to_string |> String.split(".") |> List.first
+    bin_node_names |> Enum.map(&(:"#{&1}@#{hostname}"))
   end
 
   defp bin_node_names() do
