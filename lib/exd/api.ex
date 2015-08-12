@@ -1,5 +1,4 @@
 defmodule Exd.Api do
-  import Exd.Util
   @moduledoc ~S"""
   This module defines set of functions for introspection an API, defined on model.
 
@@ -102,7 +101,7 @@ defmodule Exd.Api do
   defp get_associations(module) do
     module.__schema__(:associations) |> Enum.flat_map(fn(association) ->
       case module.__schema__(:association, association) do
-        %Ecto.Association.BelongsTo{owner_key: field, assoc: assoc_module} ->
+        %Ecto.Association.BelongsTo{owner_key: field, related: assoc_module} ->
           [{field, assoc_module.__schema__(:source), assoc_module}]
         _ ->
           []

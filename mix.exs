@@ -13,7 +13,7 @@ defmodule Exd.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger, :ecto, :ecto_migrate, :apix],
+    [applications: [:logger, :ecto, :ecto_migrate, :ecdo, :apix],
      mod: {Exd, []}]
   end
 
@@ -36,9 +36,10 @@ defmodule Exd.Mixfile do
      {:lager, "~> 2.1.1", override: true},
      {:exscript, "~> 0.0.1"},
      {:apix, "~> 0.1.0"},
-     {:ecto, "~> 0.14.0"},
-     {:ecto_migrate, "~> 0.5.0"},
+     {:ecto, "~> 0.15.0"},
+     {:ecto_migrate, "~> 0.6.0"},
      {:poison, "~> 1.4.0"},
+     {:ecdo, "~> 0.1.0"},
 
      {:coverex, "~> 1.4.1", only: :test}, 
      {:meck, "~> 0.8.2", override: true, only: :test},
