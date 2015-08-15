@@ -78,11 +78,13 @@ defmodule Exd.Api.Crud do
   end
 
   defp get_one(api, %{"id" => id} = params) do
-    data = model(api) |> Ecdo.query(Map.put(params, "where", [{:==, "id", id}])) |> repo(api).one |> save
+    params = put_in(params["where"], [{:==, "id", id}])
+    data = model(api) |> Ecdo.query(params) |> repo(api).one |> save
     unless_error(data, api, data)
   end
   defp get_one(api, %{"name" => name} = params) do
-    data = model(api) |> Ecdo.query(Map.put(params, "where", [{:==, "name", name}])) |> repo(api).one |> save
+    params = put_in(params["where"], [{:==, "name", name}])
+    data = model(api) |> Ecdo.query(params) |> repo(api).one |> save
     unless_error(data, api, data)
   end
 
