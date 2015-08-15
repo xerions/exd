@@ -36,10 +36,10 @@ defmodule Exd.Mixfile do
      {:lager, "~> 2.1.1", override: true},
      {:exscript, "~> 0.0.1"},
      {:apix, "~> 0.1.0"},
-     {:ecto, "~> 0.15.0"},
-     {:ecto_migrate, "~> 0.6.0"},
+     {:ecto, "~> 0.16.0"},
+     {:ecto_migrate, "~> 0.6.1"},
      {:poison, "~> 1.4.0"},
-     {:ecdo, "~> 0.1.1"},
+     {:ecdo, "~> 0.1.2"},
 
      {:coverex, "~> 1.4.1", only: :test}, 
      {:meck, "~> 0.8.2", override: true, only: :test},

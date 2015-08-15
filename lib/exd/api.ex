@@ -28,6 +28,7 @@ defmodule Exd.Api do
   * `@exported`  - Defines attributes, which are exported with Api
   * `@hidden`    - Defines attributes, which are hidden on Api
   * `@required`  - Defines attributes, which are required on creation
+  * `@search`    - Defines fields for search 
   * `@optional`  - Defines attributes, which are optional
   * `@read_only` - Defines attributes, which can be readed, but can't be modified
   * `@model`     - Defined on use model
@@ -39,6 +40,7 @@ defmodule Exd.Api do
   * `__exd_api__(:exported)`  - Returns all exported attributes
   * `__exd_api__(:read_only)` - Returns only read_only attributes (defaults to `:id` `:inserted_at`, `:updated_at`)
   * `__exd_api__(:required)`  - Returns required for creation attributes
+  * `__exd_api__(:search)`    - Returns searchable fields 
   * `__exd_api__(:optional)`  - Returns optional for creation attributes
   * `__exd_api__(:changable)` - Returns changable for update attributes
 
@@ -125,6 +127,7 @@ defmodule Exd.Api do
       @exported @model.__schema__(:fields) -- (Module.get_attribute(__MODULE__, :hidden) || [])
       @read_only [:id, :inserted_at, :updated_at]
       @required (@exported -- @read_only) -- (Module.get_attribute(__MODULE__, :optional) || [])
+      @search Module.get_attribute(__MODULE__, :search) || :name in @model.__schema__(:fields) && [:name] || []
 
       api "options", :__options__
       @doc """
@@ -147,6 +150,7 @@ defmodule Exd.Api do
       def __exd_api__(:exported),  do: @exported
       def __exd_api__(:read_only), do: @read_only
       def __exd_api__(:required),  do: @required
+      def __exd_api__(:search),    do: @search
 
       @optional  (exported -- read_only) -- required
       @changable (exported -- read_only)
