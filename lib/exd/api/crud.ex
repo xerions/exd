@@ -89,7 +89,19 @@ defmodule Exd.Api.Crud do
   end
 
   defp select(api, params), do:
-    model(api) |> Ecdo.query(params) |> repo(api).all |> save
+    model(api) |> Ecdo.query(params |> search(api)) |> repo(api).all |> save
+
+  defp search(%{"search" => search} = params, api) do 
+    searchable_fields = api.__exd_api__(:search)
+                        |> Enum.map(fn(filed) -> {:like, Atom.to_string(filed), search} end)
+                        |> build_or({})
+    put_in(params["where"], (Map.get(params, "where", []) |> List.wrap) ++ searchable_fields)
+  end
+  defp search(params, _), do: params
+
+  defp build_or([], acc), do: [acc]
+  defp build_or([left | rest], {}), do: build_or(rest, left)
+  defp build_or([left | rest], {_, _, _} = acc), do: build_or(rest, {:or, left, acc})
 
   @doc """
   Generic post function, which uses default changset implementation or model defined `changeset/3`

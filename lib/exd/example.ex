@@ -36,6 +36,7 @@ if Mix.env in [:dev, :test] do
     @name "City"
     @tech_name "city"
     @optional [:country]
+    @search [:name, :country]
     use Exd.Api, model: City, repo: EctoIt.Repo
     crud
     def_service(:test_app)

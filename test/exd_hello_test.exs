@@ -80,6 +80,17 @@ defmodule ExdHelloTest do
     assert {:ok, %{"id" => wid}} = call("put", "weather", %{"id" => wid, "temp_lo" => 14, "temp_hi" => 25})
     assert {:ok, %{"temp_lo" => 14, "temp_hi" => 25}} = call("get", "weather", %{"id" => wid})
 
+    # search
+    assert {:ok, [%{"name" => "Novosibirsk"}, 
+                  %{"name" => "Omsk"}]} = call("get", "city", %{"search" => "%sk%"})
+    assert {:ok, [%{"name" => "Berlin"},
+                  %{"name" => "Novosibirsk"}, 
+                  %{"name" => "Moscow"},
+                  %{"name" => "Omsk"}]} = call("get", "city", %{"search" => "%i%"})
+    assert {:ok, [%{"name" => "Novosibirsk"}, 
+                  %{"name" => "Moscow"},
+                  %{"name" => "Omsk"}]} = call("get", "city", %{"search" => "%i%", "where" => "country == \"Russia\""})
+
     # delete
     assert {:ok, %{"id" => wid}} = call("delete", "weather", %{"id" => wid})
     assert {:ok, %{"id" => id}} = call("delete", "city", %{"id" => id})
