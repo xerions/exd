@@ -35,7 +35,7 @@ defmodule Exd.Escript.Remoter.Dist do
     init
     local_nodes |> Enum.map(fn(node) -> rpc(node, Exd.Escript.Remoter.Dist.apis) end)
                 |> List.flatten
-                |> Enum.into(%{})
+                |> Enum.reduce(%{}, fn(app, acc) -> Map.merge(acc, app) end) 
   end
 
   def remote(_api = %{node: node, module: module}, method, payload) do
@@ -65,10 +65,8 @@ defmodule Exd.Escript.Remoter.Dist do
   Returns list of applications and for every application APIs, which are available on node.
   """
   def apis() do
-    for {app, _, _} <- :application.which_applications,
-        modules = apis(app), modules != nil do
-      {"#{app}", modules}
-    end
+    Enum.map(:application.which_applications, fn({app, _, _}) -> app end)
+    |> Enum.reduce(%{}, fn(app, acc) -> Map.merge(acc, apis(app)) end) 
   end
 
   @doc """
@@ -76,21 +74,24 @@ defmodule Exd.Escript.Remoter.Dist do
   """
   def apis(app) do
     {:ok, modules} = :application.get_key(app, :modules)
-    modules = for module <- modules, model_loaded?(module), do: module
+    modules = for module <- modules, app_loaded?(module), do: module
     case modules do
-      []      -> nil
+      []      -> %{}
       modules -> Stream.map(modules, &api_info(app, &1)) |> Enum.into(%{})
     end
   end
 
   defp api_info(app, module) do
     introspection = Apix.apply(module, "options", %{})
-    remote_information = %{app: app, node: node, module: module}
+    remote_information = %{app: app, node: node}
     {introspection[:name], Map.merge(introspection, remote_information)}
   end
 
-  defp model_loaded?(module) do
+  defp app_loaded?(module) do
     :code.is_loaded(module) == false and :code.load_file(module)
-    function_exported?(module, :__apix__, 0)
+    case function_exported?(module, :__exd_api__, 1) do
+      true -> apply(module, :__exd_api__, [:app])
+      false -> false
+    end
   end
 end
