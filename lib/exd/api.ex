@@ -119,6 +119,7 @@ defmodule Exd.Api do
       use Apix
       import Exd.Api, only: :macros
       import Exd.Api.Crud, only: :macros
+      import Exd.Api.Export, only: :macros
       @before_compile Exd.Api
 
       require unquote(model)

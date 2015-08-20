@@ -18,6 +18,19 @@ Development state
 
 Very alpha, functional, some parts are still not working or not working properly.
 
+Demo of ecto_export
+-------------------
+
+Example:
+
+```
+ ./exd post exd/weather/export filename:export.json
+{:ok, 0}
+
+$ ./exd get exd/weather/export id:0
+{:ok, :job_finished}
+```
+
 Configurable model on start
 ---------------------------
 

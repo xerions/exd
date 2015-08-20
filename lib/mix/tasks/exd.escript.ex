@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Exd.Escript do
-	use Mix.Task
+  use Mix.Task
 
-	@shortdoc "Generate Exd escript"
+  @shortdoc "Generate Exd escript"
   @spec run(OptionParser.argv) :: :ok | :noop
   def run(args) do
     Mix.Project.get!

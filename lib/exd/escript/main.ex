@@ -26,6 +26,10 @@ commands:
 link:
   <app>
   <app>/<model>
+  <app>/action
+  <app>/<model>/action
+  
+  action - export or import
 
 data: should be given in input format(defaults to native: <key>:<value>)
 
@@ -58,7 +62,7 @@ available opts:
 """
   end
 
-  def main([command],opts, script, remoter, local_apps) do
+  def main([command], opts, script, remoter, local_apps) do
     IO.puts "Error: 'exd #{command}' command must have options"
     main([], opts, script, remoter, local_apps)
   end
@@ -86,6 +90,20 @@ link: #{app}
 available apis:
 #{ Enum.map(apis, &print_api(&1, script)) }
 """
+  end
+
+  @actions ["export", "import"]
+  #defp on_app(command, opts, app, [action], payload, apis, script, remoter) when action in @actions do
+    ##api_map = apis[api] || fail("application: #{app}: api #{api} not found")
+    #IO.puts("#{action}: #{app}")
+    ##on_command(command, opts, api_map, payload, script, remoter)
+  #end
+
+  defp on_app(command, opts, app, [api, action], payload, apis, script, remoter) when action in @actions do
+    api_map = apis[api] || fail("application: #{app}: api #{api} not found")
+    IO.puts("#{action}: #{app}/#{api}")
+    #String.to_atom(action) |> do_action(command, opts, api_map, payload, remoter) 
+    on_command("#{action}_#{command}", opts, api_map, payload, script, remoter)
   end
 
   defp on_app(command, opts, app, [api], payload, apis, script, remoter) do

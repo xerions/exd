@@ -28,6 +28,7 @@ if Mix.env in [:dev, :test] do
     @optional [:prcp, :temp_lo, :temp_hi]
     use Exd.Api, model: Weather, repo: EctoIt.Repo
     crud
+    export
     def_service(:test_app)
   end
 
