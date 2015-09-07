@@ -89,6 +89,20 @@ By using of `Exd.Api` you will be automatically get method options, which is pos
 iex> Apix.apply(Weather.Api, "options", %{})
 ```
 
+You can describe nested API via `apis` option in Exd.Api. If you want to use CLI or WEB you should have application's API. This is achieved by adding attribute `@app: true` to API module.
+
+For example:
+
+```elixir
+defmodule Example.Api do
+  @moduledoc "Example application"
+  @name "Example"
+  @tech_name "exd"
+  @app true
+  use Exd.Api, apis: [City.Api, Weather.Api]
+end
+```
+
 CLI
 ---
 

@@ -34,6 +34,7 @@ defmodule Exd.Api do
   * `@model`     - Defined on use model
   * `@repo`      - Defined on use repo
 
+  * `__exd_api__(:app)`       - true if it application API
   * `__exd_api__(:model)`     - Returns an model of an API
   * `__exd_api__(:repo)`      - Returns an repo of an model
   * `__exd_api__(:instance)`  - Returns instance of model;
@@ -80,11 +81,14 @@ defmodule Exd.Api do
         nil           -> field_map
       end
     end
-    %{name:        Apix.spec(api),
-      desc_name:   Apix.spec(api, :name),
-      description: Apix.spec(api, :doc),
-      methods:     Apix.spec(api, :methods),
-      fields:      fields}
+    introspection = %{module:      api,
+                      node:        node(),
+                      name:        Apix.spec(api),
+                      desc_name:   Apix.spec(api, :name),
+                      description: Apix.spec(api, :doc),
+                      methods:     Apix.spec(api, :methods),
+                      fields:      fields}
+    Map.merge(introspection, instruction_apis(api.__exd_api__(:apis)))
   end
 
   defp datatype(api, field) do
@@ -111,10 +115,19 @@ defmodule Exd.Api do
     end)
   end
 
+  defp instruction_apis(apis) do
+    Stream.map(apis, 
+               fn api -> 
+                 introspection = Apix.apply(api, "options", %{})
+                 {introspection[:name], introspection}
+               end) |> Enum.into(%{})
+  end
+
   @doc false
   defmacro __using__(opts) do
-    model = opts[:model] || raise ArgumentError, message: "Api should have `model` in options"
-    repo = opts[:repo] || raise ArgumentError, message: "Api should have `repo` in options"
+    model = opts[:model]  || Exd.Model.Dummy
+    repo = opts[:repo]
+    apis = opts[:apis] || []
     quote do
       use Apix
       import Exd.Api, only: :macros
@@ -124,6 +137,7 @@ defmodule Exd.Api do
       require unquote(model)
       @model unquote(model)
       @repo  unquote(repo)
+      @apis  unquote(apis)
       @exported @model.__schema__(:fields) -- (Module.get_attribute(__MODULE__, :hidden) || [])
       @read_only [:id, :inserted_at, :updated_at]
       @required (@exported -- @read_only) -- (Module.get_attribute(__MODULE__, :optional) || [])
@@ -142,8 +156,9 @@ defmodule Exd.Api do
   @doc false
   defmacro __before_compile__(env) do
     module = env.module
-    [required, exported, read_only] = for attr <- [:required, :exported, :read_only], do: Module.get_attribute(module, attr)
-    quote bind_quoted: [exported: exported, read_only: read_only, required: required] do
+    [required, exported, read_only, app] = for attr <- [:required, :exported, :read_only, :app], 
+                                             do: Module.get_attribute(module, attr) 
+    quote bind_quoted: [exported: exported, read_only: read_only, required: required, app: app] do
       def __exd_api__(:model),     do: @model
       def __exd_api__(:repo),      do: @repo
       def __exd_api__(:instance),  do: @model.__struct__
@@ -151,6 +166,8 @@ defmodule Exd.Api do
       def __exd_api__(:read_only), do: @read_only
       def __exd_api__(:required),  do: @required
       def __exd_api__(:search),    do: @search
+      def __exd_api__(:apis),      do: @apis
+      def __exd_api__(:app),       do: @app == true
 
       @optional  (exported -- read_only) -- required
       @changable (exported -- read_only)

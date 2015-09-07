@@ -42,4 +42,11 @@ if Mix.env in [:dev, :test] do
     def_service(:test_app)
   end
 
+  defmodule Example.Api do
+    @moduledoc "Example application"
+    @name "Example"
+    @tech_name "exd"
+    @app true
+    use Exd.Api, apis: [City.Api, Weather.Api]
+  end
 end
