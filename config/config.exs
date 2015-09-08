@@ -25,3 +25,6 @@ use Mix.Config
 
 config :ecto_it, EctoIt.Repo,
   adapter: Ecto.Adapters.Postgres
+
+config :exd,
+  addr: 'zmq-tcp://127.0.0.1:10900'
