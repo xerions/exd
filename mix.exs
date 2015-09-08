@@ -29,7 +29,7 @@ defmodule Exd.Mixfile do
   defp deps do
     [{:postgrex, ">= 0.0.0", optional: true},
      {:mariaex,  ">= 0.1.0", optional: true},
-     {:ecto_it,  "~> 0.2.0", optional: true},
+     {:ecto_it,  "~> 0.2.0", optional: true, override: true},
      {:jsx,      "~> 2.6.2"},
      {:hello, github: "travelping/hello", optional: true},
 
@@ -37,15 +37,16 @@ defmodule Exd.Mixfile do
      {:exscript, "~> 0.0.1"},
      {:apix, "~> 0.1.0"},
      {:ecto, "~> 0.16.0"},
-     {:ecto_migrate, "~> 0.6.1"},
+     {:ecto_migrate, "~> 0.6.1", override: true},
      {:poison, "~> 1.4.0"},
      {:ecdo, "~> 0.1.2"},
 
-     {:coverex, "~> 1.4.1", only: :test}, 
-     {:meck, "~> 0.8.2", override: true, only: :test},
+     {:coverex, "~> 1.4.1", only: :test},
+     {:meck, "~> 0.8.2", override: true},
      {:mock, github: "jjh42/mock", only: :test},
 
      {:earmark, "~> 0.1", only: :dev},
-     {:ex_doc, "~> 0.7", only: :dev}]
+     {:ex_doc, "~> 0.7", only: :dev},
+     {:ecto_taggable, github: "xerions/ecto_taggable"}]
   end
 end

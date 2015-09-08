@@ -44,6 +44,7 @@ defmodule Exd.Api do
   * `__exd_api__(:search)`    - Returns searchable fields 
   * `__exd_api__(:optional)`  - Returns optional for creation attributes
   * `__exd_api__(:changable)` - Returns changable for update attributes
+  * `__exd_api__(:tech_name)` - Returns value of the tech_name attribute
 
   """
 
@@ -168,6 +169,7 @@ defmodule Exd.Api do
       def __exd_api__(:search),    do: @search
       def __exd_api__(:apis),      do: @apis
       def __exd_api__(:app),       do: @app == true
+      def __exd_api__(:tech_name), do: @tech_name
 
       @optional  (exported -- read_only) -- required
       @changable (exported -- read_only)

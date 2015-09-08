@@ -17,15 +17,23 @@ if Code.ensure_loaded?(:hello) do
     """
     def handle_request(api, method, args, state) do
       result = if method in api.__apix__(:methods) do
-        {:ok, nil2null(api.__apix__(:apply, method, args))}
-      else
-        {:error, {:method_not_found, method, :null}}
-      end
+                 {:ok, nil2null(api.__apix__(:apply, method, args))}
+               else
+                 if function_exported?(api, method |> String.to_atom, 2) do
+                   {:ok, nil2null(apply(api, method |> String.to_atom, [state[:repo], args]))}
+                 else
+                   {:error, {:method_not_found, method, :null}}
+                 end
+               end
       {:stop, :normal, result, state}
     end
 
     defp nil2null(%{} = map) do
-      Enum.map(map, fn({key, value}) -> {key, nil2null(value)} end) |> Enum.into(%{})
+      try do
+        Enum.map(map, fn({key, value}) -> {key, nil2null(value)} end) |> Enum.into(%{})
+      rescue _ in _ ->
+          Enum.map(Map.from_struct(map), fn({key, value}) -> {key, nil2null(value)} end) |> Enum.into(%{})
+      end
     end
     defp nil2null(list) when is_list(list) do
       Enum.map(list, &nil2null/1)
@@ -57,7 +65,9 @@ if Code.ensure_loaded?(:hello) do
         def validation(), do: Exd.Plugin.Hello.Validation
 
         @doc false
-        def init(identifier, _), do: {:ok, nil}
+        def init(identifier, state) do
+          {:ok, state}
+        end
         @doc false
         def handle_request(_context, method, args, state) do
           Exd.Plugin.Hello.handle_request(__MODULE__, method, args, state)
@@ -95,10 +105,32 @@ if Code.ensure_loaded?(:hello) do
     @doc """
     Implements route, see module documentation.
     """
-    def route(context(session_id: id), request(method: _method, args: args), uri) do
-      case :hello_binding.lookup(uri, args["resource"]) do
-        {:error, :not_found} -> {:error, :method_not_found}
-        {:ok, _, name} -> {:ok, name, id}
+    def route(context(session_id: id), request(method: method, args: args) = _req, uri) do
+      paths = String.split(args["resource"], "/")
+      resource_len = length(paths)
+      cond do
+        resource_len == 1 ->
+          case :hello_binding.lookup(uri, args["resource"]) do
+            {:error, :not_found} -> {:error, :method_not_found}
+            {:ok, _, name} -> {:ok, name, id}
+          end
+        resource_len == 2 ->
+          res = Enum.filter(:hello_binding.all, fn({_,_,resource, _}) -> resource == args["resource"] end)
+          case res do
+            [] -> {:error, :method_not_found}
+            _ ->  {:ok, args["resource"], id}
+          end
+        resource_len == 3 ->
+          app = Enum.at(paths, 0) |> String.to_atom
+          module_api = Exd.Router.apis(method, args["resource"])
+          case module_api do
+            nil ->
+              {:error, :method_not_found}
+              _ ->
+              {:ok, module_api[app].module_api.name, id}
+          end
+        resource_len > 3 or resource_len < 1 ->
+          {:error, :method_not_found}
       end
     end
   end
