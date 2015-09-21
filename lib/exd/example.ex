@@ -16,10 +16,19 @@ if Mix.env in [:dev, :test] do
       field :name, :string
       field :country, :string
       has_many :weather, Weather
+      has_many :tags, {"city_tags", Ecto.Taggable}, [foreign_key: :tag_id]
     end
   end
 
   import Exd.Plugin.Hello
+
+  defmodule Example.Api do
+    @moduledoc "Example application"
+    @name "Example"
+    @tech_name :exd
+    @app true
+    use Exd.Api, apis: [City.Api, Weather.Api]
+  end
 
   defmodule Weather.Api do
     @moduledoc "Weather API documentation"
@@ -28,7 +37,7 @@ if Mix.env in [:dev, :test] do
     @optional [:prcp, :temp_lo, :temp_hi]
     use Exd.Api, model: Weather, repo: EctoIt.Repo
     crud
-    def_service(:test_app)
+    def_service(Example.Api.__exd_api__(:tech_name))
   end
 
   defmodule City.Api do
@@ -37,16 +46,8 @@ if Mix.env in [:dev, :test] do
     @tech_name "city"
     @optional [:country]
     @search [:name, :country]
-    use Exd.Api, model: City, repo: EctoIt.Repo
+    use Exd.Api, model: City, repo: EctoIt.Repo, apis: [Exd.Api.Tag]
     crud
-    def_service(:test_app)
-  end
-
-  defmodule Example.Api do
-    @moduledoc "Example application"
-    @name "Example"
-    @tech_name "exd"
-    @app true
-    use Exd.Api, apis: [City.Api, Weather.Api]
+    def_service(Example.Api.__exd_api__(:tech_name))
   end
 end

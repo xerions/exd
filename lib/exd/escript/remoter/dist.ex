@@ -15,9 +15,10 @@ defmodule Exd.Escript.Remoter.Dist do
       ...> Dist.rpc(:node@host, Enum.sort([1,3,2]))
       [1,2,3]
   """
-  defmacro rpc(node, {{:., _, [module, function]}, _, args}) do
+  defmacro rpc(node, {{:., _, [module, function]}, _, args}, cli_args) do
     quote do
-      :rpc.call(unquote(node), Exd.Escript.Remoter.Dist, :relay_apply, [unquote(module), unquote(function), unquote(args)])
+      :rpc.call(unquote(node), Exd.Escript.Remoter.Dist, :relay_apply,
+                [unquote(module), unquote(function), unquote(args) ++ unquote(cli_args)])
     end
   end
 
@@ -26,20 +27,42 @@ defmodule Exd.Escript.Remoter.Dist do
   """
   def relay_apply(module, function, args) do
     :erlang.group_leader(Process.whereis(:user), self)
-    apply(module, function, args)
+    if function == :__apix__ do
+      case args do
+        [_, method, payload] -> module.__apix__(:apply, method, payload)
+        [method, repo, module, payload] -> apply(module, method |> String.to_atom, [repo, payload])
+      end
+    else
+      apply(module, function, [Enum.at(args, 1), Enum.at(args, 0)])
+    end
   end
 
-  @behaviour Exd.Escript.Remoter
-
-  def applications(_) do
+  def remote(path, method, params) do
     init
-    local_nodes |> Enum.map(fn(node) -> rpc(node, Exd.Escript.Remoter.Dist.apis) end)
-                |> List.flatten
-                |> Enum.reduce(%{}, fn(app, acc) -> Map.merge(acc, app) end) 
+    result = Enum.map(local_nodes, fn(node) ->
+      res = rpc(node, Exd.Router.apis, [path, method, params])
+      case map_size(res) == 0 do
+        true -> %{}
+        false ->
+          app_api = res[Exd.Router.app_name(path) |> String.to_atom]
+          case (method == "options") or (method == "help") do
+            true -> app_api
+            _ -> send_query(node, path, app_api, method, params)
+          end
+      end
+    end) |> :lists.flatten
+    case (method == "options") or (method == "help") do
+      true -> result |> response
+      false -> result |> Enum.reduce(%{}, fn(app, acc) -> Map.merge(acc, app) end) |> response
+    end
   end
 
-  def remote(_api = %{node: node, module: module}, method, payload) do
-    rpc(node, module.__apix__(:apply, method, payload))
+  defp send_query(node, path, app_api, method, params) do
+    if method in app_api.module_api.__apix__(:methods) do
+      rpc(node, app_api.module_api.__apix__, [:apply, method, params]) |> format_result
+    else
+      rpc(node, app_api.module_api.__apix__, [method, app_api.repo, app_api.module_api, Map.put_new(params, "resource", path)]) |> format_result
+    end
   end
 
   defp init() do
@@ -61,37 +84,14 @@ defmodule Exd.Escript.Remoter.Dist do
   defp exd_name("exd_script" <> digit), do: [String.to_integer(digit)]
   defp exd_name(_), do: []
 
-  @doc """
-  Returns list of applications and for every application APIs, which are available on node.
-  """
-  def apis() do
-    Enum.map(:application.which_applications, fn({app, _, _}) -> app end)
-    |> Enum.reduce(%{}, fn(app, acc) -> Map.merge(acc, apis(app)) end) 
-  end
+  defp format_result(nil), do: %{}
+  defp format_result(res), do: res
 
-  @doc """
-  Returns list of modules for an application, which are represent APIs.
-  """
-  def apis(app) do
-    {:ok, modules} = :application.get_key(app, :modules)
-    modules = for module <- modules, app_loaded?(module), do: module
-    case modules do
-      []      -> %{}
-      modules -> Stream.map(modules, &api_info(app, &1)) |> Enum.into(%{})
+  defp response(result) when is_map(result) do
+    case map_size(result) == 0 do
+      true -> nil
+      false -> result
     end
   end
-
-  defp api_info(app, module) do
-    introspection = Apix.apply(module, "options", %{})
-    remote_information = %{app: app, node: node}
-    {introspection[:name], Map.merge(introspection, remote_information)}
-  end
-
-  defp app_loaded?(module) do
-    :code.is_loaded(module) == false and :code.load_file(module)
-    case function_exported?(module, :__exd_api__, 1) do
-      true -> apply(module, :__exd_api__, [:app])
-      false -> false
-    end
-  end
+  defp response(result), do: result
 end
