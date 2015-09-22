@@ -47,6 +47,6 @@ defmodule Exd.Mixfile do
 
      {:earmark, "~> 0.1", only: :dev},
      {:ex_doc, "~> 0.7", only: :dev},
-     {:ecto_taggable, github: "xerions/ecto_taggable"}]
+     {:ecto_taggable, github: "xerions/ecto_taggable", override: true}]
   end
 end
