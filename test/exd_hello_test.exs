@@ -46,7 +46,7 @@ defmodule ExdHelloTest do
     assert {:ok, [%{"count" => 3}]} = call("get", "exd/city", %{"where" => "country == \"Russia\"", "count" => "id"})
 
     # where
-    assert {:ok, [%{"name" => "Novosibirsk"}, 
+    assert {:ok, [%{"name" => "Novosibirsk"},
                   %{"name" => "Moscow"},
                   %{"name" => "Omsk"}]} = call("get", "exd/city", %{"where" => "country == \"Russia\""})
     assert {:ok, [%{"name" => "London"}]} = call("get", "exd/city", %{"where" => "country == \"UK\""})
@@ -57,31 +57,31 @@ defmodule ExdHelloTest do
                                                                       "limit" => "1", "offset" => "1"})
     assert {:ok, [%{"name" => "Omsk"}]} = call("get", "exd/city", %{"where" => "country == \"Russia\"",
                                                                     "limit" => 1, "offset" => 2})
-    # like 
-    assert {:ok, [%{"name" => "Novosibirsk"}, 
+    # like
+    assert {:ok, [%{"name" => "Novosibirsk"},
                   %{"name" => "Omsk"}]} = call("get", "exd/city", %{"where" => "like(name, \"%sk%\")"})
     assert {:ok, [%{"name" => "Omsk"}]} = call("get", "exd/city", %{"where" => "like(name, \"%msk\")"})
     assert {:ok, [%{"name" => "Berlin"}]} = call("get", "exd/city", %{"where" => "like(name, \"b%\")"})
     assert {:ok, [%{"name" => "Berlin"}]} = call("get", "exd/city", %{"where" => "like(name, \"berlin\")"})
 
     # distinct
-    assert {:ok, [%{"country" => :null}, 
-                  %{"country" => "Germany"}, 
-                  %{"country" => "Russia"}, 
+    assert {:ok, [%{"country" => :null},
+                  %{"country" => "Germany"},
+                  %{"country" => "Russia"},
                   %{"country" => "UK"}]} = call("get", "exd/city", %{"select" => "country", "distinct" => true})
 
     # order
-    assert {:ok, [%{"name" => "Moscow"}, 
+    assert {:ok, [%{"name" => "Moscow"},
                   %{"name" => "Novosibirsk"},
-                  %{"name" => "Omsk"}]} = call("get", "exd/city", %{"where" => "country == \"Russia\"", 
+                  %{"name" => "Omsk"}]} = call("get", "exd/city", %{"where" => "country == \"Russia\"",
                                                                     "order_by" => "name"})
-    assert {:ok, [%{"name" => "Omsk"}, 
+    assert {:ok, [%{"name" => "Omsk"},
                   %{"name" => "Novosibirsk"},
-                  %{"name" => "Moscow"}]} = call("get", "exd/city", %{"where" => "country == \"Russia\"", 
+                  %{"name" => "Moscow"}]} = call("get", "exd/city", %{"where" => "country == \"Russia\"",
                                                                       "order_by" => "name:desc"})
 
     # join
-    assert {:ok, [%{"city.name" => "Novosibirsk", "weather.temp_lo" => -30}]} 
+    assert {:ok, [%{"city.name" => "Novosibirsk", "weather.temp_lo" => -30}]}
             = call("get", "exd/city", %{"where" => "city.name == \"Novosibirsk\"",
                                         "join" => ["city","weather"], "select" => "city.name,weather.temp_lo"})
 
@@ -90,13 +90,13 @@ defmodule ExdHelloTest do
     assert {:ok, %{"temp_lo" => 14, "temp_hi" => 25}} = call("get", "exd/weather", %{"id" => wid})
 
     # search
-    assert {:ok, [%{"name" => "Novosibirsk"}, 
+    assert {:ok, [%{"name" => "Novosibirsk"},
                   %{"name" => "Omsk"}]} = call("get", "exd/city", %{"search" => "%sk%"})
     assert {:ok, [%{"name" => "Berlin"},
-                  %{"name" => "Novosibirsk"}, 
+                  %{"name" => "Novosibirsk"},
                   %{"name" => "Moscow"},
                   %{"name" => "Omsk"}]} = call("get", "exd/city", %{"search" => "%i%"})
-    assert {:ok, [%{"name" => "Novosibirsk"}, 
+    assert {:ok, [%{"name" => "Novosibirsk"},
                   %{"name" => "Moscow"},
                   %{"name" => "Omsk"}]} = call("get", "exd/city", %{"search" => "%i%", "where" => "country == \"Russia\""})
 
@@ -125,6 +125,10 @@ defmodule ExdHelloTest do
     {:ok, city2_after_tag_remove} = call("get", "exd/city", %{"name" => "TestCity_Tags2"})
     assert null = city2_after_tag_remove["country"]
     assert "TestCity_Tags2" = city2_after_tag_remove["name"]
+
+    assert {:ok, %{"id" => _}} = call("post", "city", %{"name" => "Magdeburg"})
+    assert {:ok, %{"errors" => %{"name" => "exists"}}} = call("post", "city", %{"name" => "Magdeburg"})
+    assert {:ok, %{"errors" => %{"city_id" => "not found"}}} = call("post", "weather", %{"name" => "WeatherX", "city_id" => 99999, "temp_lo" => 15})
   end
 
   defp call(method, resource, params) when is_map(params) do

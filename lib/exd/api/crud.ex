@@ -91,7 +91,7 @@ defmodule Exd.Api.Crud do
   defp select(api, params), do:
     model(api) |> Ecdo.query(params |> search(api)) |> repo(api).all |> save
 
-  defp search(%{"search" => search} = params, api) do 
+  defp search(%{"search" => search} = params, api) do
     searchable_fields = api.__exd_api__(:search)
                         |> Enum.map(fn(filed) -> {:like, Atom.to_string(filed), search} end)
                         |> build_or({})
@@ -196,21 +196,33 @@ defmodule Exd.Api.Crud do
     end
   end
 
-  # TODO: remove hack
-  defp check_error(%{mariadb: %{code: _, message: "Duplicate entry" <> _message}}, _api) do
-    # _value = String.split(error) |> hd() |> String.strip(?')
-    %{errors: %{name: "exists"}}
-  end
-  defp check_error(%{mariadb: %{code: _, message: "Cannot add or update a child row: a foreign key constraint fails" <> message}}, _api) do
-    {_, ["KEY", relation | _]} = String.split(message) |> Enum.split_while(&(&1 != "KEY"))
-    relation = String.slice(relation, 2, byte_size(relation) - 4) |> String.to_atom
-    %{errors: Map.put(%{}, relation, "not found")}
+  defp check_error(%Ecto.ConstraintError{constraint: constraint, type: type} = error, api) do
+    case type do
+      :unique ->
+        check_unique_error(error, api)
+      :foreign_key ->
+        check_foreign_key_error(error, api)
+    end
   end
   defp check_error(%{message: "tcp connect: econnrefused"}, _api) do
     %{errors: %{database: "not available"}}
   end
   defp check_error(%{errors: _} = error, _), do: error
   defp check_error(_, _), do: nil
+
+  defp check_unique_error(%Ecto.ConstraintError{constraint: constraint}, api) do
+    source = api.__schema__(:source)
+    {0, l} = :binary.match(constraint, [source])
+    field = String.slice(constraint, l + 1, byte_size(constraint) - l - unquote(byte_size("__index"))) |> String.to_atom()
+    %{errors: Map.put(%{}, field, "exists")}
+  end
+
+  defp check_foreign_key_error(%Ecto.ConstraintError{constraint: constraint}, api) do
+    source = api.__schema__(:source)
+    {0, l} = :binary.match(constraint, [source])
+    relation = String.slice(constraint, l + 1, byte_size(constraint) - l - unquote(byte_size("__fkey"))) |> String.to_atom()
+    %{errors: Map.put(%{}, relation, "not found")}
+  end
 
   defp notify(data, api, callback) do
     unless_error(data, api, Callbacks.__apply__(api, callback, data))
