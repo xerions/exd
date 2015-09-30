@@ -93,7 +93,24 @@ apis:
   defp payload(payload, "native") do
     splited = Enum.map(payload, &String.split(&1, ":", parts: 2))
     Enum.all?(splited, &((length(&1) == 2) or (length(&1) == 3))) || fail("payload should be in form of <key>:<value> or <key>:<value>:<meta>")
-    splited |> Enum.map(&List.to_tuple/1) |> Enum.into(%{})
+    splited |> Enum.map(&List.to_tuple/1) |> format_load |> Enum.into(%{})
+  end
+
+  defp format_load(query_params) do
+    Enum.map(query_params, fn({key, value}) ->
+      case key do
+        "load" ->
+          preloads = String.split(value, ",")
+          Enum.map(preloads, fn(preload) ->
+            case String.split(preload, "=>") do
+              [model, preload_query] -> {key, [{String.strip(model), payload([String.strip(preload_query)], "native")}]}
+              _ -> key
+            end
+          end)
+        _ ->
+          {key, value}
+      end
+    end) |> :lists.flatten
   end
 
   defp script, do: :escript.script_name |> Path.basename |> String.to_atom
