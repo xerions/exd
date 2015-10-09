@@ -28,7 +28,7 @@ defmodule Exd.Api do
   * `@exported`  - Defines attributes, which are exported with Api
   * `@hidden`    - Defines attributes, which are hidden on Api
   * `@required`  - Defines attributes, which are required on creation
-  * `@search`    - Defines fields for search 
+  * `@search`    - Defines fields for search
   * `@optional`  - Defines attributes, which are optional
   * `@read_only` - Defines attributes, which can be readed, but can't be modified
   * `@model`     - Defined on use model
@@ -41,7 +41,7 @@ defmodule Exd.Api do
   * `__exd_api__(:exported)`  - Returns all exported attributes
   * `__exd_api__(:read_only)` - Returns only read_only attributes (defaults to `:id` `:inserted_at`, `:updated_at`)
   * `__exd_api__(:required)`  - Returns required for creation attributes
-  * `__exd_api__(:search)`    - Returns searchable fields 
+  * `__exd_api__(:search)`    - Returns searchable fields
   * `__exd_api__(:optional)`  - Returns optional for creation attributes
   * `__exd_api__(:changable)` - Returns changable for update attributes
   * `__exd_api__(:tech_name)` - Returns value of the tech_name attribute
@@ -117,8 +117,8 @@ defmodule Exd.Api do
   end
 
   defp instruction_apis(apis) do
-    Stream.map(apis, 
-               fn api -> 
+    Stream.map(apis,
+               fn api ->
                  introspection = Apix.apply(api, "options", %{})
                  {introspection[:name], introspection}
                end) |> Enum.into(%{})
@@ -157,8 +157,8 @@ defmodule Exd.Api do
   @doc false
   defmacro __before_compile__(env) do
     module = env.module
-    [required, exported, read_only, app] = for attr <- [:required, :exported, :read_only, :app], 
-                                             do: Module.get_attribute(module, attr) 
+    [required, exported, read_only, app] = for attr <- [:required, :exported, :read_only, :app],
+                                             do: Module.get_attribute(module, attr)
     quote bind_quoted: [exported: exported, read_only: read_only, required: required, app: app] do
       def __exd_api__(:model),     do: @model
       def __exd_api__(:repo),      do: @repo
