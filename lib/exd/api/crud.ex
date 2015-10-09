@@ -78,12 +78,17 @@ defmodule Exd.Api.Crud do
   end
 
   defp get_one(api, %{"id" => id} = params) do
-    params = put_in(params["where"], [{:==, "id", id}])
+    # FIXME: get back to form of [{:==, :id, id}]
+    # Once it doesn't generate it to a query with literals ids.
+    # Problem is, that if we doesn't replace it with parameters (as we do it in id == "xyz")
+    # the resulting query is "WHERE (a0.`id` = 1)" instead of WHERE (a0.`id` = ?)"
+    # it results in much entries in prepared statements cache and in performance degradation.
+    params = put_in(params["where"], ~s(id == "#{id}"))
     data = model(api) |> Ecdo.query(params) |> repo(api).one |> save
     unless_error(data, api, data)
   end
   defp get_one(api, %{"name" => name} = params) do
-    params = put_in(params["where"], [{:==, "name", name}])
+    params = put_in(params["where"], ~s(name == "#{name}"))
     data = model(api) |> Ecdo.query(params) |> repo(api).one |> save
     unless_error(data, api, data)
   end
