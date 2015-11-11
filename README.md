@@ -143,6 +143,37 @@ Expose ecto to erlang application
 
 As the ecto interface is based heavily on macros, and not directly invokable in erlang, there should exists reach erlang API to allow to handle and manipulate Ecto model from erlang application. [WiP]
 
+Metrics
+-------
+
+EXD collect some metrics via exometer_core.
+If you want to report metrics to reporters you should subscribe to each API like this:
+
+    Exd.Metrics.subscribe(City.Api)
+
+It will collect the following metrics:
+
+* [:api, resource, :requests, method, :per_sec, :ok] - spiral.
+Successful requests per second.
+
+* [:api, resource, :requests, method, :per_sec, :error] - spiral.
+Unsuccessful requests per second.
+
+* [:api, resource, :requests, method, :per_sec, :db_not_available] - spiral.
+Unsuccessful requests with reason db_not_available per second
+
+* [:api, resource, :request, method, :handle_time] - histogram.
+`mean` and `max` handling time for one requests with 1 minute time span. 
+
+`resource`,  `method` and `type`(:ok, error, :db_not_available) will be transformed to tags if you use exometer_influxdb reporter.
+For example:
+
+    [:api, :private_user, :requests, :post, :ok, :per_sec]
+
+becoming
+
+    api_requests_per_sec,resource=private_user,method=post,type=ok
+
 Model-driven development
 ------------------------
 
