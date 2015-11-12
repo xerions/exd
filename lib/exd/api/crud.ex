@@ -276,7 +276,8 @@ defmodule Exd.Api.Crud do
 
         #{ Exd.Api.Crud.description(@model, @exported, @read_only, @required, :post) }
         """
-        def __post__(args), do: Exd.Api.Crud.post(__MODULE__, args)
+        def __post__(args), do:
+          Exd.Metrics.request(__MODULE__, :post, fn -> Exd.Api.Crud.post(__MODULE__, args) end)
       end
 
       if :put in actions do
@@ -289,7 +290,8 @@ defmodule Exd.Api.Crud do
 
         #{ Exd.Api.Crud.description(@model, @exported, @read_only, @required, :put) }
         """
-        def __put__(args), do: Exd.Api.Crud.put(__MODULE__, args)
+        def __put__(args), do:
+          Exd.Metrics.request(__MODULE__, :put, fn -> Exd.Api.Crud.put(__MODULE__, args) end)
       end
 
       if :get in actions do
@@ -302,7 +304,8 @@ defmodule Exd.Api.Crud do
 
         #{ Exd.Api.Crud.description(@model, @exported, @read_only, @required, :get) }
         """
-        def __get__(args), do: Exd.Api.Crud.get(__MODULE__, args)
+        def __get__(args), do:
+          Exd.Metrics.request(__MODULE__, :get, fn -> Exd.Api.Crud.get(__MODULE__, args) end)
       end
 
       if :delete in actions do
@@ -315,7 +318,8 @@ defmodule Exd.Api.Crud do
 
         #{ Exd.Api.Crud.description(@model, @exported, @read_only, @required, :delete) }
         """
-        def __delete__(args), do: Exd.Api.Crud.delete(__MODULE__, args)
+        def __delete__(args), do:
+          Exd.Metrics.request(__MODULE__, :delete, fn -> Exd.Api.Crud.delete(__MODULE__, args) end)
       end
     end
   end

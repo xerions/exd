@@ -149,7 +149,8 @@ defmodule Exd.Api do
       Method: `options`.
       Introspection of #{String.downcase(@name)} API.
       """
-      def __options__(_args), do: Exd.Api.introspection(__MODULE__)
+      def __options__(_args), do: 
+        Exd.Metrics.request(__MODULE__, :options, fn -> Exd.Api.introspection(__MODULE__) end)
       defdelegate [__schema__(target), __schema__(target, id)], to: unquote(model)
     end
   end
