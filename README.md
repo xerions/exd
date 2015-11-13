@@ -165,6 +165,9 @@ Unsuccessful requests with reason db_not_available per second
 * [:api, resource, :request, method, :handle_time] - histogram.
 `mean` and `max` handling time for one requests with 1 minute time span. 
 
+* [:api, resource, :objects] - function
+Number of objects of `resource` in database.
+
 `resource`,  `method` and `type`(:ok, error, :db_not_available) will be transformed to tags if you use exometer_influxdb reporter.
 For example:
 
