@@ -1,7 +1,32 @@
 defmodule Exd.Metrics do
-  @default_time 1000
+
+  import Ecto.Query
+
+  @default_request_time 1000
+  @default_object_time 10000
 
   def subscribe(api) do
+    subscribe_objects(api)
+    subscribe_requests(api)
+  end
+
+  defp subscribe_objects(api) do
+    name = [:api, "#{api.__exd_api__(:tech_name)}" |> String.to_atom, :objects]
+    :exometer.new(name, {:function, Exd.Metrics, :count_objects, [api], :value, [:counter]})
+    tags = [{:resource, {:from_name, 2}}]
+    for {reporter, _} <- :exometer_report.list_reporters do
+      :exometer_report.subscribe(reporter, name, :value, @default_object_time, tags, true)
+    end
+  end
+
+  def count_objects(api) do
+    model = api.__exd_api__(:model)
+    repo = api.__exd_api__(:repo)
+    value = repo.one(from u in model, select: count(u.id))
+    [counter: value]
+  end
+
+  defp subscribe_requests(api) do
     for {reporter, _} <- :exometer_report.list_reporters do
       tags = [resource: {:from_name, 2},
               method: {:from_name, 4}]
@@ -9,11 +34,11 @@ defmodule Exd.Metrics do
       for crud <- api.__apix__(:methods) do
         for result <- [:ok, :error, :db_not_available_error] do
           name = name(api, crud, [result, :per_sec])
-          :exometer_report.subscribe(reporter, name, :one, @default_time, tags_with_type, true)
+          :exometer_report.subscribe(reporter, name, :one, @default_request_time, tags_with_type, true)
         end
         name = name(api, crud, :handle_time)
-        :exometer_report.subscribe(reporter, name, :max, @default_time, tags, true)
-        :exometer_report.subscribe(reporter, name, :mean, @default_time, tags, true)
+        :exometer_report.subscribe(reporter, name, :max, @default_request_time, tags, true)
+        :exometer_report.subscribe(reporter, name, :mean, @default_request_time, tags, true)
       end
     end
   end
