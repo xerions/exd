@@ -33,7 +33,7 @@ defmodule Exd.Mixfile do
      {:jsx,      "~> 2.6.2"},
      {:hello, github: "travelping/hello", optional: true},
      {:exometer_core, github: "Feuerlabs/exometer_core", override: true},
-     {:hackney, "~> 1.3.1", override: true},
+     {:hackney, "~> 1.4.4", override: true},
      {:edown, github: "uwiger/edown", override: true},
 
      {:lager, "~> 2.1.1", override: true},
