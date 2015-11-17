@@ -4,7 +4,7 @@ defmodule ExdHelloTest do
   setup do
     Application.ensure_all_started(:hello)
     Application.ensure_all_started(:ecto_it)
-    Exd.Plugin.Hello.start_listener('zmq-tcp://127.0.0.1:10900')
+    Exd.Plugin.Hello.start_listener('zmq-tcp://127.0.0.1:10900', :test)
     for model <- [City, Weather] do
       Exd.Model.compile_migrate(EctoIt.Repo, model, [])
       assocs = model.__schema__(:associations)

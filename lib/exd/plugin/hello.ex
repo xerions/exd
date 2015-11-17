@@ -8,8 +8,9 @@ if Code.ensure_loaded?(:hello) do
     Start hello listener, simplified as the most use case it needed. Please, see :hello.start_listener
     for more information.
     """
-    def start_listener(uri \\ 'zmq-tcp://127.0.0.1:0', protocol \\ :hello_proto_jsonrpc, decoder \\ :hello_json) do
-      :hello.start_listener(uri, [], protocol, [decoder: decoder], Exd.Plugin.Hello.Router)
+    
+    def start_listener(uri \\ 'zmq-tcp://127.0.0.1:0', name \\ :undefined) do
+      :hello.start_listener(name, uri, [], :hello_proto_jsonrpc, [decoder: :hello_json], Exd.Plugin.Hello.Router)
     end
 
     @doc """
