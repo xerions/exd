@@ -12,10 +12,10 @@ defmodule Exd.Metrics do
 
   defp subscribe_objects(api) do
     name = [:api, "#{api.__exd_api__(:tech_name)}" |> String.to_atom, :objects]
-    :exometer.new(name, {:function, Exd.Metrics, :count_objects, [api], :value, [:counter]})
+    :exometer.new(name, {:function, Exd.Metrics, :count_objects, [api], :proplist, [:counter]})
     tags = [{:resource, {:from_name, 2}}]
     for {reporter, _} <- :exometer_report.list_reporters do
-      :exometer_report.subscribe(reporter, name, :value, @default_object_time, tags, true)
+      :exometer_report.subscribe(reporter, name, :counter, @default_object_time, tags, true)
     end
   end
 
