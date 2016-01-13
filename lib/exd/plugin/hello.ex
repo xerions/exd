@@ -98,6 +98,8 @@ if Code.ensure_loaded?(:hello) do
     @moduledoc """
     Overwrites default hello router, to use instead of `Resource.method` the scheme, `method` and
     `resource` as parameter.
+
+    If `resource` isn't found default hello router will be used.
     """
     require Record
     Record.defrecordp(:context, Record.extract(:context, from_lib: "hello/include/hello.hrl"))
@@ -106,32 +108,36 @@ if Code.ensure_loaded?(:hello) do
     @doc """
     Implements route, see module documentation.
     """
-    def route(context(session_id: id), request(method: method, args: args) = _req, uri) do
-      paths = String.split(args["resource"], "/")
-      resource_len = length(paths)
-      cond do
-        resource_len == 1 ->
-          case :hello_binding.lookup(uri, args["resource"]) do
-            {:error, :not_found} -> {:error, :method_not_found}
-            {:ok, _, name} -> {:ok, name, id}
-          end
-        resource_len == 2 ->
-          res = Enum.filter(:hello_binding.all, fn({_,_,resource, _}) -> resource == args["resource"] end)
-          case res do
-            [] -> {:error, :method_not_found}
-            _ ->  {:ok, args["resource"], id}
-          end
-        resource_len == 3 ->
-          app = Enum.at(paths, 0) |> String.to_atom
-          module_api = Exd.Router.apis(method, args["resource"])
-          case module_api do
-            nil ->
+    def route(context(session_id: id) = ctx, request(method: method, args: args) = req, uri) do
+      case args["resource"] do
+        nil -> :hello_router.route(ctx, req, uri)
+        resource -> 
+          paths = String.split(resource, "/")
+          resource_len = length(paths)
+          cond do
+            resource_len == 1 ->
+              case :hello_binding.lookup(uri, resource) do
+                {:error, :not_found} -> {:error, :method_not_found}
+                {:ok, _, name} -> {:ok, name, id}
+              end
+            resource_len == 2 ->
+              res = Enum.filter(:hello_binding.all, fn({_,_,r,_}) -> r == resource end)
+              case res do
+                [] -> {:error, :method_not_found}
+                _ ->  {:ok, resource, id}
+              end
+            resource_len == 3 ->
+              app = Enum.at(paths, 0) |> String.to_atom
+              module_api = Exd.Router.apis(method, resource)
+              case module_api do
+                nil ->
+                  {:error, :method_not_found}
+                  _ ->
+                  {:ok, module_api[app].module_api.name, id}
+              end
+            resource_len > 3 or resource_len < 1 ->
               {:error, :method_not_found}
-              _ ->
-              {:ok, module_api[app].module_api.name, id}
           end
-        resource_len > 3 or resource_len < 1 ->
-          {:error, :method_not_found}
       end
     end
   end
