@@ -169,13 +169,15 @@ defmodule Exd.Api do
       def __exd_api__(:required),  do: @required
       def __exd_api__(:search),    do: @search
       def __exd_api__(:apis),      do: @apis
-      def __exd_api__(:app),       do: @app == true
       def __exd_api__(:tech_name), do: @tech_name
 
       @optional  (exported -- read_only) -- required
       @changable (exported -- read_only)
       def __exd_api__(:optional),  do: @optional
       def __exd_api__(:changable), do: @changable
+
+      @app app
+      def __exd_api__(:app),       do: @app == true
     end
   end
 end
