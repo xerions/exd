@@ -23,5 +23,8 @@ use Mix.Config
 #
 #     import_config "#{Mix.env}.exs"
 
+config :exd, :metrics,
+  enabled: [:object, :request]
+
 config :ecto_it, EctoIt.Repo,
   adapter: Ecto.Adapters.Postgres

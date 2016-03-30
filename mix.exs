@@ -14,6 +14,7 @@ defmodule Exd.Mixfile do
   # Type `mix help compile.app` for more information
   def application do
     [applications: [:logger, :ecto, :ecto_migrate, :ecdo, :apix, :exometer_core],
+     env: [metrics: [enabled: [:object, :request]]],
      mod: {Exd, []}]
   end
 

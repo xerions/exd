@@ -2,77 +2,124 @@ defmodule Exd.Metrics do
 
   import Ecto.Query
 
-  @default_request_time 1000
-  @default_object_time 10000
+  @default_entries  [:exd]
 
-  def subscribe(api) do
-    subscribe_objects(api)
-    subscribe_requests(api)
+  @object_counter   {:function,
+                     Exd.Metrics,
+                     :count_objects,
+                     nil,
+                     :proplist,
+                     [:value]}
+
+  @counter          {:counter, []}
+
+  @histogram_60000  {:histogram,
+                     [slot_period: 100,
+                      time_span: 60000]}
+
+  @object_metrics   [## just object metrics for each api
+                     {:object, [
+                      {:counter, @object_counter}]}]
+
+  @request_metrics  [## just request metrics for each api
+                     {:request, :total, [
+                      {:gauge, @histogram_60000},
+                      {:counter, @counter}]},
+                     {:request, :get, [
+                      {:gauge, @histogram_60000},
+                      {:counter, @counter}]},
+                     {:request, :put, [
+                      {:gauge, @histogram_60000},
+                      {:counter, @counter}]},
+                     {:request, :post, [
+                      {:gauge, @histogram_60000},
+                      {:counter, @counter}]},
+                     {:request, :delete, [
+                      {:gauge, @histogram_60000},
+                      {:counter, @counter}]}]
+
+
+  def init_metrics() do
+    metrics = Application.get_env(:exd, :metrics, [])
+    enabled_metrics = Keyword.get(metrics, :enabled, [])
+    # here some basic request metrics are created
+    for status <- [:total, :success, :error, :db_not_available] do
+      final_total_counter_id = @default_entries ++ [:request, :total, :total, status, :counter]
+      final_total_gauge_id = @default_entries ++ [:request, :total, :total, status, :gauge]
+      if Enum.member?(enabled_metrics, :request) do
+        {:counter, counter_opts} = @counter
+        {:histogram, histogram_opts} = @histogram_60000
+        :exometer.new(final_total_counter_id, :counter, counter_opts)
+        :exometer.update_or_create(final_total_gauge_id, 0, :histogram, histogram_opts)
+      end
+    end
   end
 
-  defp subscribe_objects(api) do
-    name = [:api, "#{api.__exd_api__(:tech_name)}" |> String.to_atom, :objects]
-    :exometer.new(name, {:function, Exd.Metrics, :count_objects, [api], :proplist, [:counter]})
-    tags = [{:resource, {:from_name, 2}}]
-    for {reporter, _} <- :exometer_report.list_reporters do
-      :exometer_report.subscribe(reporter, name, :counter, @default_object_time, tags, true)
-    end
+  def init_metrics(api) do
+    metrics = Application.get_env(:exd, :metrics, [])
+    enabled_metrics = Keyword.get(metrics, :enabled, [])
+    if Enum.member?(enabled_metrics, :object), do:
+      create_object_metrics(api)
+    if Enum.member?(enabled_metrics, :request), do:
+      create_request_metrics(api)
+  end
+
+  defp create_object_metrics(api) do
+    [{unit_type, function_args}] = @object_metrics[:object]
+    api_name = "#{api.__exd_api__(:tech_name)}" |> String.to_atom
+    final_id = @default_entries ++ [:object, api_name, unit_type]
+    :exometer.new(final_id, :erlang.setelement(4, function_args, [api]))
   end
 
   def count_objects(api) do
     model = api.__exd_api__(:model)
     repo = api.__exd_api__(:repo)
     value = repo.one(from u in model, select: count(u.id))
-    [counter: value]
+    [value: value]
   end
 
-  defp subscribe_requests(api) do
-    for {reporter, _} <- :exometer_report.list_reporters do
-      tags = [resource: {:from_name, 2},
-              method: {:from_name, 4}]
-      tags_with_type = tags ++ [type: {:from_name, 5}]
-      for crud <- api.__apix__(:methods) do
-        for result <- [:ok, :error, :db_not_available_error] do
-          name = name(api, crud, [result, :per_sec])
-          :exometer_report.subscribe(reporter, name, :one, @default_request_time, tags_with_type, true)
+  defp create_request_metrics(api) do
+    object_name = "#{api.__exd_api__(:tech_name)}" |> String.to_atom
+    for {metric_name, metric_type, units} <- @request_metrics do
+      for {unit_type, {exo_type, exo_type_opts}} <- units do
+        for status <- [:total, :success, :error, :db_not_available] do
+          final_id = @default_entries ++ [metric_name, metric_type, object_name, status, unit_type]
+          :exometer.update_or_create(final_id, 0, exo_type, exo_type_opts)
         end
-        name = name(api, crud, :handle_time)
-        :exometer_report.subscribe(reporter, name, :max, @default_request_time, tags, true)
-        :exometer_report.subscribe(reporter, name, :mean, @default_request_time, tags, true)
       end
     end
   end
 
   def request(api, method, fun) do
+    # time is given in microseconds
     {time, value} = :timer.tc(fun)
     case value do
-      %{errors: %{database: "not available"}} -> db_error_request(api, method)
-      %{errors: _} -> error_request(api, method)
-      _ -> ok_request(api, method)
+      %{errors: %{database: "not available"}} ->
+                           request(:db_not_available, api, method, time / 1000)
+      %{errors: _}      -> request(:error, api, method, time / 1000)
+      _success_request  -> request(:success, api, method, time / 1000)
     end
-    handle_time(api, method, time / 1000)
     value
   end
 
-  defp ok_request(api, method) do
-    :exometer.update_or_create(name(api, method, [:ok, :per_sec]), 1, :spiral, [{:time_span, 1000}])
+  defp request(status, api, method, time) do
+    api_name = "#{api.__exd_api__(:tech_name)}" |> String.to_atom
+    # first update the request counters per api and totally
+    :exometer.update(request_id(status, api_name, method, :counter), 1)
+    :exometer.update(request_id(status, api_name, :total, :counter), 1)
+    :exometer.update(request_id(:total, api_name, :total, :counter), 1)
+    :exometer.update(request_id(status, :total, :total, :counter), 1)
+    :exometer.update(request_id(:total, :total, :total, :counter), 1)
+
+    # then update the request handle time histograms
+    :exometer.update(request_id(status, api_name, method, :gauge), time)
+    :exometer.update(request_id(status, api_name, :total, :gauge), time)
+    :exometer.update(request_id(:total, api_name, :total, :gauge), time)
+    :exometer.update(request_id(status, :total, :total, :gauge), time)
+    :exometer.update(request_id(:total, :total, :total, :gauge), time)
   end
 
-  defp error_request(api, method) do
-    :exometer.update_or_create(name(api, method, [:error, :per_sec]), 1, :spiral, [{:time_span, 1000}])
-  end
+  defp request_id(status, api_name, request_type, unit_type), do:
+    @default_entries ++ [:request, request_type, api_name, status, unit_type]
 
-  defp db_error_request(api, method) do
-    :exometer.update_or_create(name(api, method, [:db_not_available_error, :per_sec]), 1, :spiral, [{:time_span, 1000}])
-  end
-
-  defp handle_time(api, method, time), do:
-    :exometer.update_or_create(name(api, method, :handle_time), time, :histogram, [{:truncate, false}])
-
-  defp name(api, method, :handle_time), do:
-    [:api, "#{api.__exd_api__(:tech_name)}" |> String.to_atom, :request, "#{method}" |> String.to_atom, :handle_time]
-
-  defp name(api, method, name), do:
-    [:api, "#{api.__exd_api__(:tech_name)}" |> String.to_atom, :requests, "#{method}" |> String.to_atom, name]
-    |> List.flatten
 end

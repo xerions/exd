@@ -146,36 +146,25 @@ As the ecto interface is based heavily on macros, and not directly invokable in 
 Metrics
 -------
 
-EXD collect some metrics via exometer_core.
-If you want to report metrics to reporters you should subscribe to each API like this:
+EXD collects some metrics via exometer_core. If you want to report those metrics you have to initialize metrics to each API:
 
-    Exd.Metrics.subscribe(City.Api)
+    Exd.Metrics.init_metrics(City.Api)
 
 It will collect the following metrics:
 
-* [:api, resource, :requests, method, :per_sec, :ok] - spiral.
-Successful requests per second.
+    * request counter
+    * request handle times
+    * object counter
 
-* [:api, resource, :requests, method, :per_sec, :error] - spiral.
-Unsuccessful requests per second.
+The request metrics are broken down by the method which was used (put, post, delete, update)
+and by the status of the request (success, error, db_not_available). Further a request counter
+and handle time metric is initialized at start for all API calls combined.
 
-* [:api, resource, :requests, method, :per_sec, :db_not_available] - spiral.
-Unsuccessful requests with reason db_not_available per second
+The handle times metrics are internally generated using histograms. These histograms have a time span of 60s.
 
-* [:api, resource, :request, method, :handle_time] - histogram.
-`mean` and `max` handling time for one requests with 1 minute time span. 
+The exometer IDs can be viewed in the Exd.Metrics module or just execute `:exometer_report.list_metrics([:exd])`
+_after_ you initialized your API metrics.
 
-* [:api, resource, :objects] - function
-Number of objects of `resource` in database.
-
-`resource`,  `method` and `type`(:ok, error, :db_not_available) will be transformed to tags if you use exometer_influxdb reporter.
-For example:
-
-    [:api, :private_user, :requests, :post, :ok, :per_sec]
-
-becoming
-
-    api_requests_per_sec,resource=private_user,method=post,type=ok
 
 Model-driven development
 ------------------------
