@@ -71,7 +71,6 @@ defmodule Exd.Metrics do
 
   defp name(api, method, :handle_time), do:
     [:api, "#{api.__exd_api__(:tech_name)}" |> String.to_atom, :request, "#{method}" |> String.to_atom, :handle_time]
-    |> List.flatten
 
   defp name(api, method, name), do:
     [:api, "#{api.__exd_api__(:tech_name)}" |> String.to_atom, :requests, "#{method}" |> String.to_atom, name]
