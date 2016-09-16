@@ -151,7 +151,8 @@ defmodule Exd.Api do
       """
       def __options__(_args), do: 
         Exd.Metrics.request(__MODULE__, :options, fn -> Exd.Api.introspection(__MODULE__) end)
-      defdelegate [__schema__(target), __schema__(target, id)], to: unquote(model)
+      defdelegate __schema__(target), to: unquote(model)
+      defdelegate __schema__(target, id), to: unquote(model)
     end
   end
 

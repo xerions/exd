@@ -35,9 +35,10 @@ defmodule Exd.Mixfile do
      {:hello, github: "travelping/hello", optional: true},
      {:exometer_core, github: "Feuerlabs/exometer_core", branch: "master", override: true},
      {:hackney, "~> 1.3.1", override: true},
+     {:msgpack, "~> 0.6.0", override: true},
      {:edown, github: "uwiger/edown", branch: "master", override: true},
 
-     {:lager, "~> 2.1.1", override: true},
+     {:lager, "~> 3.2.1", override: true},
      {:exscript, "~> 0.0.1"},
      {:apix, "~> 0.1.0"},
      {:ecto_migrate, "~> 0.6.2"},
