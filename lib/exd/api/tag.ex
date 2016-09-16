@@ -38,7 +38,7 @@ defmodule Exd.Api.Tag do
   end
 
   def delete(repo, params) do
-    {tagname, tagvalue, model, params} = get_data_for_tag(params)
+    {_tagname, tagvalue, model, params} = get_data_for_tag(params)
     case params do
       [] -> Ecto.Taggable.Api.drop_tag(repo, model, tagvalue, tagvalue)
       _ ->  Ecto.Taggable.Api.drop_tag(repo, model |> repo.get_by(params), tagvalue, tagvalue)
