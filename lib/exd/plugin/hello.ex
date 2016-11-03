@@ -18,29 +18,16 @@ if Code.ensure_loaded?(:hello) do
     """
     def handle_request(api, method, args, state) do
       result = if method in api.__apix__(:methods) do
-                 {:ok, nil2null(api.__apix__(:apply, method, args))}
+                 {:ok, api.__apix__(:apply, method, args)}
                else
                  if function_exported?(api, method |> String.to_atom, 2) do
-                   {:ok, nil2null(apply(api, method |> String.to_atom, [state[:repo], args]))}
+                   {:ok, apply(api, method |> String.to_atom, [state[:repo], args])}
                  else
                    {:error, {:method_not_found, method, :null}}
                  end
                end
       {:stop, :normal, result, state}
     end
-
-    defp nil2null(%{} = map) do
-      try do
-        Enum.map(map, fn({key, value}) -> {key, nil2null(value)} end) |> Enum.into(%{})
-      rescue _ in _ ->
-          Enum.map(Map.from_struct(map), fn({key, value}) -> {key, nil2null(value)} end) |> Enum.into(%{})
-      end
-    end
-    defp nil2null(list) when is_list(list) do
-      Enum.map(list, &nil2null/1)
-    end
-    defp nil2null(nil), do: :null
-    defp nil2null(value), do: value
 
     @doc """
     Exports the API as hello service. It defines the name, based on `app` option and @tech_name as
