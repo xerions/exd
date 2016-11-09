@@ -17,6 +17,17 @@ if Code.ensure_loaded?(:hello) do
     Implementation of `handle_request/4` for a service.
     """
     def handle_request(api, method, args, state) do
+      args = if method == "post" or method == "put" do
+               Enum.map(args, fn({k, v}) ->
+                 v = if v == :null do
+                       nil
+                     else v end
+                 {k, v}
+               end)
+               |> Enum.into(%{})
+             else
+               args
+             end
       result = if method in api.__apix__(:methods) do
                  {:ok, nil2null(api.__apix__(:apply, method, args))}
                else

@@ -35,11 +35,13 @@ defmodule ExdHelloTest do
     assert {:ok, %{"id" => _}} = call("post", "city", %{"country" => "UK", "name" => "London"})
     assert {:ok, %{"id" => wid}} = call("post", "weather", %{"name" => "Weather", "city_id" => id, "temp_lo" => 15})
     assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather1", "city_id" => nid, "temp_lo" => -30})
+    assert {:ok, %{"id" => id}} = call("post", "city", ["name": "City", "country": :null])
 
     # get
     assert {:ok, %{"country" => :null, "name" => "Berlin"}} = call("get", "exd/city", %{"name" => "Berlin"})
     assert {:ok, %{"country" => :null, "weather" => [%{"temp_hi" => :null, "temp_lo" => 15}]}}
            = call("get", "exd/city", %{"name" => "Berlin", "load" => ["weather"]})
+    assert {:ok, %{"country" => :null, "name" => "City"}} = call("get", "exd/city", %{"name" => "City"})
 
     # count
     assert {:ok, [%{"count" => 1}]} = call("get", "exd/city", %{"where" => "country == \"UK\"", "count" => "id"})
@@ -95,7 +97,8 @@ defmodule ExdHelloTest do
     assert {:ok, [%{"name" => "Berlin"},
                   %{"name" => "Novosibirsk"},
                   %{"name" => "Moscow"},
-                  %{"name" => "Omsk"}]} = call("get", "exd/city", %{"search" => "%i%"})
+                  %{"name" => "Omsk"},
+                  %{"name" => "City"}]} = call("get", "exd/city", %{"search" => "%i%"})
     assert {:ok, [%{"name" => "Novosibirsk"},
                   %{"name" => "Moscow"},
                   %{"name" => "Omsk"}]} = call("get", "exd/city", %{"search" => "%i%", "where" => "country == \"Russia\""})
