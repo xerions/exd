@@ -132,6 +132,28 @@ defmodule ExdHelloTest do
     assert {:ok, %{"id" => _}} = call("post", "city", %{"name" => "Magdeburg"})
     assert {:ok, %{"errors" => %{"name" => "exists"}}} = call("post", "city", %{"name" => "Magdeburg"})
     assert {:ok, %{"errors" => %{"city_id" => "not found"}}} = call("post", "weather", %{"name" => "WeatherX", "city_id" => 99999, "temp_lo" => 15})
+
+    assert {:ok, %{"id" => id}} = call("post", "city", %{"name" => "Berlin"})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather_test_1", "city_id" => id, "temp_lo" => +1})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather2", "city_id" => id, "temp_lo" => +2})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather3", "city_id" => id, "temp_lo" => +3})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather4", "city_id" => id, "temp_lo" => +4})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather5", "city_id" => id, "temp_lo" => +5})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather6", "city_id" => id, "temp_lo" => +6})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather7", "city_id" => id, "temp_lo" => +7})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather8", "city_id" => id, "temp_lo" => +8})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather9", "city_id" => id, "temp_lo" => +9})
+    assert {:ok, %{"id" => _}} = call("post", "weather", %{"name" => "Weather10", "city_id" => id, "temp_lo" => +10})
+    {:ok, data} = call("get", "exd/city", %{"name" => "Berlin", load: ["weather"]})
+    assert "Berlin" = data["name"]
+    assert 10 = length(data["weather"])
+    {:ok, data} = call("get", "exd/city", %{"name" => "Berlin", "load" => %{"weather" => %{"where" => "temp_lo > 1 and temp_lo < 10", "limit" => 2}}})
+    assert "Berlin" = data["name"]
+    weather = data["weather"]
+    assert 2 = length(weather)
+    [weather1, weather2] = weather
+    assert 2 = weather1["temp_lo"]
+    assert 3 = weather2["temp_lo"]
   end
 
   defp call(method, resource, params) when is_map(params) do
